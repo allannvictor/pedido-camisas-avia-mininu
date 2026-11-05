@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Novo Manto Avia Mininu</title>
+  <meta name="description" content="Faça seu pedido do novo manto Avia Mininu." />
+  <meta name="theme-color" content="#0f1b3d" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23ffc23d' d='M22 8 12 12 4 24l8 6 4-4v30h32V26l4 4 8-6-8-12-10-4c-2 4-6 6-10 6s-8-2-10-6z'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <span class="badge" id="prazo-badge">Pedidos abertos</span>
+      <h1 id="titulo">Novo Manto<br /><span>Avia Mininu</span></h1>
+      <p class="hero-sub">Escolha o tipo, o modelo e o tamanho. Leva menos de um minuto.</p>
+      <div class="price-pill">
+        <strong id="preco-atual">R$ 50</strong>
+        <span>por camisa</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="demo-banner" id="demo-banner" hidden>
+      <strong>Modo demonstração:</strong> os pedidos ficam salvos só neste navegador.
+    </div>
+
+    <!-- Progresso do desconto -->
+    <section class="card progress-card" aria-live="polite">
+      <div class="progress-head">
+        <span class="label">Camisas pedidas pelo grupo</span>
+        <span class="count"><b id="total-grupo">0</b> / <span id="meta">30</span></span>
+      </div>
+      <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+      <p class="progress-msg" id="progress-msg">Carregando…</p>
+    </section>
+
+    <!-- Pedido fechado -->
+    <section class="card closed" id="closed" hidden>
+      <h2>Pedidos encerrados</h2>
+      <p>O prazo terminou. Fale com a organização se precisar de algo.</p>
+    </section>
+
+    <form id="form" novalidate>
+      <!-- Montar item -->
+      <section class="card">
+        <h2><span class="step">1</span> Tipo</h2>
+        <div class="tipo-grid" id="tipos" role="radiogroup" aria-label="Tipo de camisa"></div>
+
+        <h2><span class="step">2</span> Modelo</h2>
+        <div class="segmented" id="modelos" role="radiogroup" aria-label="Modelo"></div>
+
+        <h2><span class="step">3</span> Tamanho</h2>
+        <div class="chips" id="tamanhos" role="radiogroup" aria-label="Tamanho"></div>
+
+        <div class="add-row">
+          <div class="stepper" aria-label="Quantidade">
+            <button type="button" id="qtd-menos" aria-label="Diminuir">−</button>
+            <output id="qtd">1</output>
+            <button type="button" id="qtd-mais" aria-label="Aumentar">+</button>
+          </div>
+          <button type="button" class="btn btn-secondary" id="add">Adicionar ao pedido</button>
+        </div>
+        <p class="hint" id="add-hint"></p>
+      </section>
+
+      <!-- Carrinho -->
+      <section class="card" id="carrinho-card">
+        <h2><span class="step">4</span> Seu pedido</h2>
+        <ul class="cart" id="cart"></ul>
+        <p class="empty" id="cart-empty">Nenhuma camisa adicionada ainda.</p>
+        <div class="cart-total" id="cart-total" hidden>
+          <span><b id="total-qtd">0</b> camisa(s)</span>
+          <strong id="total-valor">R$ 0,00</strong>
+        </div>
+      </section>
+
+      <!-- Dados -->
+      <section class="card">
+        <h2><span class="step">5</span> Seus dados</h2>
+        <label class="field">
+          <span>Nome</span>
+          <input id="nome" name="nome" autocomplete="name" placeholder="Seu nome completo" required maxlength="80" />
+        </label>
+        <label class="field">
+          <span>Telefone</span>
+          <input id="telefone" name="telefone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(83) 99999-9999" required maxlength="16" />
+        </label>
+        <!-- campo anti-spam, invisível para pessoas -->
+        <input type="text" name="site" id="site" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+        <p class="error" id="erro" role="alert" hidden></p>
+        <button type="submit" class="btn btn-primary" id="enviar">Enviar pedido</button>
+        <p class="hint center" id="prazo-texto"></p>
+      </section>
+    </form>
+
+    <!-- Sucesso -->
+    <section class="card success" id="sucesso" hidden>
+      <div class="check" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7" /></svg>
+      </div>
+      <h2>Pedido recebido!</h2>
+      <p class="muted" id="sucesso-id"></p>
+      <ul class="cart readonly" id="sucesso-itens"></ul>
+      <div class="cart-total">
+        <span id="sucesso-qtd"></span>
+        <strong id="sucesso-valor"></strong>
+      </div>
+
+      <div class="pix">
+        <span class="label">Pague via Pix</span>
+        <div class="pix-key pending" id="pix-key">Chave Pix será informada em breve</div>
+        <span class="muted small" id="pix-nome"></span>
+        <button type="button" class="btn btn-secondary" id="copiar-pix" hidden>Copiar chave Pix</button>
+      </div>
+      <p class="hint" id="aviso-desconto"></p>
+
+      <a class="btn btn-whats" id="whats" target="_blank" rel="noopener" hidden>Enviar comprovante no WhatsApp</a>
+      <button type="button" class="btn btn-ghost" id="novo">Fazer outro pedido</button>
+    </section>
+  </main>
+
+  <footer class="wrap footer">Avia Mininu · pedido coletivo</footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
