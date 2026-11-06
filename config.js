@@ -24,7 +24,7 @@ window.CONFIG = {
 
   // WhatsApp de quem organiza, só números com DDI e DDD (ex: "5583999999999").
   // Se preenchido, aparece um botão para a pessoa mandar o comprovante.
-  WHATSAPP_ORGANIZADOR: "",
+  WHATSAPP_ORGANIZADOR: "5579999286884",
 
   TIPOS: [
     { id: "Com mangas", descricao: "Camisa normal", icone: "manga" },
