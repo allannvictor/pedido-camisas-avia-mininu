@@ -61,6 +61,17 @@
         <h2><span class="step">3</span> Tamanho</h2>
         <div class="chips" id="tamanhos" role="radiogroup" aria-label="Tamanho"></div>
 
+        <h2><span class="step">4</span> Nome na camisa?</h2>
+        <div class="segmented two" id="personalizar" role="radiogroup" aria-label="Nome na camisa">
+          <button type="button" role="radio" aria-checked="true" data-v="nao">Sem nome</button>
+          <button type="button" role="radio" aria-checked="false" data-v="sim">Com nome <small id="preco-nome-label">+ R$ 10</small></button>
+        </div>
+        <label class="field nome-camisa" id="nome-camisa-wrap" hidden>
+          <span>Nome que vai na camisa</span>
+          <input id="nome-camisa" maxlength="15" autocomplete="off" autocapitalize="characters" placeholder="Ex.: JOÃO" />
+          <small class="muted">Até 15 letras. Para nomes diferentes, adicione uma camisa de cada vez.</small>
+        </label>
+
         <div class="add-row">
           <div class="stepper" aria-label="Quantidade">
             <button type="button" id="qtd-menos" aria-label="Diminuir">−</button>
@@ -74,7 +85,7 @@
 
       <!-- Carrinho -->
       <section class="card" id="carrinho-card">
-        <h2><span class="step">4</span> Seu pedido</h2>
+        <h2><span class="step">5</span> Seu pedido</h2>
         <ul class="cart" id="cart"></ul>
         <p class="empty" id="cart-empty">Nenhuma camisa adicionada ainda.</p>
         <div class="cart-total" id="cart-total" hidden>
@@ -85,7 +96,7 @@
 
       <!-- Dados -->
       <section class="card">
-        <h2><span class="step">5</span> Seus dados</h2>
+        <h2><span class="step">6</span> Seus dados</h2>
         <label class="field">
           <span>Nome</span>
           <input id="nome" name="nome" autocomplete="name" placeholder="Seu nome completo" required maxlength="80" />
@@ -116,7 +127,7 @@
       </div>
 
       <div class="pix">
-        <span class="label">Pague via Pix</span>
+        <span class="label">Pague via Pix · chave aleatória</span>
         <div class="pix-key pending" id="pix-key">Chave Pix será informada em breve</div>
         <span class="muted small" id="pix-nome"></span>
         <button type="button" class="btn btn-secondary" id="copiar-pix" hidden>Copiar chave Pix</button>

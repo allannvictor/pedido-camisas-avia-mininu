@@ -169,6 +169,14 @@ main { margin-top: -40px; }
   font: inherit; font-weight: 600; font-size: 14px;
   padding: 10px 4px; border-radius: 9px; cursor: pointer;
 }
+.segmented.two { grid-template-columns: 1fr 1fr; }
+.segmented small { font-weight: 700; color: var(--ok); margin-left: 4px; }
+.nome-camisa { margin: 12px 0 0; }
+.nome-camisa input { text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+.nome-camisa small { display: block; margin-top: 6px; font-size: 13px; }
+.stepper.locked { opacity: .5; }
+.cart .tag { display: inline-block; margin-top: 3px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px; letter-spacing: .03em; }
+.cart .price { font-weight: 700; font-size: 14px; white-space: nowrap; }
 .segmented button[aria-checked="true"] { background: var(--card); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); color: var(--accent); }
 
 /* ---------- Chips ---------- */
@@ -264,11 +272,11 @@ main { margin-top: -40px; }
 .success h2 { justify-content: center; font-size: 24px; margin: 0 0 4px; }
 @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .pix {
-  margin-top: 18px; padding: 16px;
+  margin-top: 18px; padding: 16px 12px;
   border-radius: 14px; background: var(--chip);
   display: grid; gap: 6px;
 }
-.pix-key { font-family: ui-monospace, Menlo, monospace; font-size: 16px; font-weight: 700; word-break: break-all; }
+.pix-key { font-family: inherit; font-size: clamp(11px, 3.4vw, 16px); letter-spacing: -.015em; font-weight: 700; word-break: break-all; }
 .pix-key.pending { font-family: inherit; font-weight: 600; font-size: 15px; color: var(--muted); }
 .pix .btn { margin-top: 6px; }
 
@@ -293,3 +301,5 @@ main { margin-top: -40px; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+.success .cart-total { gap: 12px; }
+.success .cart-total span { text-align: left; font-size: 14px; color: var(--muted); }

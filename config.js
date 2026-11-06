@@ -15,12 +15,14 @@ window.CONFIG = {
   // Preços (valem para todos os tipos e modelos)
   PRECO_NORMAL: 50,
   PRECO_DESCONTO: 45,
+  // Adicional por camisa com nome personalizado
+  PRECO_NOME: 10,
   // A partir de quantas camisas NO TOTAL DO GRUPO o preço cai
   MINIMO_DESCONTO: 30,
 
   // Pagamento via Pix (deixe vazio até ter a chave)
-  PIX_CHAVE: "",
-  PIX_NOME: "", // nome de quem recebe, ex: "Fulano de Tal"
+  PIX_CHAVE: "c49b6398-01d4-4419-835b-cbba98f98521",
+  PIX_NOME: "Jeffter Cleber Rios Ferreira", // nome de quem recebe
 
   // WhatsApp de quem organiza, só números com DDI e DDD (ex: "5583999999999").
   // Se preenchido, aparece um botão para a pessoa mandar o comprovante.

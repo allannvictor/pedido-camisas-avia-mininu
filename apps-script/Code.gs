@@ -8,6 +8,8 @@ const PRAZO = new Date("2026-11-25T23:59:59-03:00"); // mesmo prazo do config.js
 const PRECO_NORMAL = 50;
 const PRECO_DESCONTO = 45;
 const MINIMO_DESCONTO = 30; // total do grupo a partir do qual vale o desconto
+const PRECO_NOME = 10; // adicional por camisa com nome
+const NOME_MAX = 15; // máximo de letras no nome da camisa
 const AVISAR_POR_EMAIL = true; // manda um e-mail para você a cada pedido
 
 const TIPOS = ["Com mangas", "Regata"];
@@ -20,32 +22,120 @@ const TAMANHOS = {
 
 const ABA_PEDIDOS = "Pedidos";
 const ABA_RESUMO = "Resumo";
-const CABECALHO = ["Data", "Pedido nº", "Nome", "Telefone", "Tipo", "Modelo", "Tamanho", "Qtd", "Valor", "Pago?", "Observação"];
+const ABA_FORNECEDOR = "Fornecedor";
+const CABECALHO = ["Data", "Pedido nº", "Nome", "Telefone", "Tipo", "Modelo", "Tamanho", "Qtd", "Nome na camisa", "Valor", "Pago?", "Observação"];
+// colunas (1 = A)
+const COL = { tipo: 5, modelo: 6, tamanho: 7, qtd: 8, nomeCamisa: 9, valor: 10, pago: 11 };
+
+/** Menu "Pedido" dentro da planilha. */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("Pedido")
+    .addItem("Gerar relatório do fornecedor", "gerarRelatorioFornecedor")
+    .addToUi();
+}
 
 /** Rode esta função UMA vez pelo editor para criar as abas. */
 function configurarPlanilha() {
   const ss = SpreadsheetApp.getActive();
-  let p = ss.getSheetByName(ABA_PEDIDOS) || ss.insertSheet(ABA_PEDIDOS);
-  p.getRange(1, 1, 1, CABECALHO.length).setValues([CABECALHO]).setFontWeight("bold").setBackground("#0f1b3d").setFontColor("#ffffff");
+  const p = ss.getSheetByName(ABA_PEDIDOS) || ss.insertSheet(ABA_PEDIDOS);
+  p.getRange(1, 1, 1, CABECALHO.length).setValues([CABECALHO])
+    .setFontWeight("bold").setBackground("#0f1b3d").setFontColor("#ffffff");
   p.setFrozenRows(1);
   p.getRange("H:H").setNumberFormat("0");
-  p.getRange("I:I").setNumberFormat("R$ #,##0.00");
+  p.getRange("J:J").setNumberFormat("R$ #,##0.00");
 
-  let r = ss.getSheetByName(ABA_RESUMO) || ss.insertSheet(ABA_RESUMO);
+  const r = ss.getSheetByName(ABA_RESUMO) || ss.insertSheet(ABA_RESUMO);
   r.clear();
-  r.getRange("A1:B4").setValues([
+  r.getRange("A1:B5").setValues([
     ["Total de camisas", "=SUM(Pedidos!H2:H)"],
     ["Preço por camisa", `=IF(B1>=${MINIMO_DESCONTO},${PRECO_DESCONTO},${PRECO_NORMAL})`],
-    ["Valor total", "=B1*B2"],
-    ["Valor já pago", '=SUMIF(Pedidos!J2:J,TRUE,Pedidos!I2:I)'],
+    ["Camisas com nome", '=SUMIF(Pedidos!I2:I,"<>",Pedidos!H2:H)'],
+    ["Valor total", "=SUM(Pedidos!J2:J)"],
+    ["Valor já pago", "=SUMIF(Pedidos!K2:K,TRUE,Pedidos!J2:J)"],
   ]);
-  r.getRange("B2:B4").setNumberFormat("R$ #,##0.00");
-  r.getRange("A1:A4").setFontWeight("bold");
-  r.getRange("A6").setValue("Quantidade por tipo / modelo / tamanho (para o fornecedor)").setFontWeight("bold");
-  r.getRange("A7").setFormula(
-    "=IFERROR(QUERY(Pedidos!E1:H,\"select E, F, G, sum(H) where E is not null group by E, F, G order by E, F label sum(H) 'Quantidade'\",1),\"Sem pedidos ainda\")"
-  );
-  r.autoResizeColumns(1, 4);
+  r.getRange("B2").setNumberFormat("R$ #,##0.00");
+  r.getRange("B4:B5").setNumberFormat("R$ #,##0.00");
+  r.getRange("A1:A5").setFontWeight("bold");
+  r.getRange("A7").setValue("Para o relatório completo do fornecedor: menu Pedido → Gerar relatório do fornecedor").setFontStyle("italic");
+  r.autoResizeColumns(1, 2);
+}
+
+/** Cria/atualiza a aba "Fornecedor" com tudo que precisa ser produzido. */
+function gerarRelatorioFornecedor() {
+  const ss = SpreadsheetApp.getActive();
+  const linhas = lerItens_();
+  const sh = ss.getSheetByName(ABA_FORNECEDOR) || ss.insertSheet(ABA_FORNECEDOR);
+  sh.clear();
+
+  const out = [];
+  const estilos = []; // [linha, tipo]
+  const push = (row, estilo) => { out.push(row.concat(Array(4 - row.length).fill(""))); if (estilo) estilos.push([out.length, estilo]); };
+
+  const total = linhas.reduce((s, l) => s + l.qtd, 0);
+  const totalNome = linhas.filter((l) => l.nomeCamisa).reduce((s, l) => s + l.qtd, 0);
+  push(["NOVO MANTO AVIA MININU — PEDIDO AO FORNECEDOR"], "titulo");
+  push([`Gerado em ${Utilities.formatDate(new Date(), "America/Sao_Paulo", "dd/MM/yyyy HH:mm")}`]);
+  push([`Total: ${total} camisa(s), sendo ${totalNome} com nome`], "negrito");
+  push([""]);
+
+  // 1) Quantidades por tipo / modelo / tamanho
+  push(["1. QUANTIDADES"], "secao");
+  TIPOS.forEach((tipo) => {
+    const doTipo = linhas.filter((l) => l.tipo === tipo);
+    if (!doTipo.length) return;
+    push([tipo.toUpperCase(), "", "", `${somar_(doTipo)} un.`], "tipo");
+    push(["Modelo", "Tamanho", "Sem nome", "Com nome"], "cabecalho");
+    Object.keys(TAMANHOS).forEach((modelo) => {
+      TAMANHOS[modelo].forEach((tam) => {
+        const its = doTipo.filter((l) => l.modelo === modelo && l.tamanho === tam);
+        if (!its.length) return;
+        push([modelo, tam, somar_(its.filter((l) => !l.nomeCamisa)), somar_(its.filter((l) => l.nomeCamisa))]);
+      });
+    });
+    push([""]);
+  });
+
+  // 2) Lista de nomes
+  push(["2. NOMES NAS CAMISAS"], "secao");
+  const comNome = linhas.filter((l) => l.nomeCamisa);
+  if (!comNome.length) push(["Nenhuma camisa com nome."]);
+  else {
+    push(["Tipo", "Modelo", "Tamanho", "Nome"], "cabecalho");
+    comNome
+      .sort((a, b) => ordem_(a) - ordem_(b) || a.nomeCamisa.localeCompare(b.nomeCamisa))
+      .forEach((l) => { for (let k = 0; k < l.qtd; k++) push([l.tipo, l.modelo, l.tamanho, l.nomeCamisa]); });
+  }
+
+  sh.getRange(1, 1, out.length, 4).setValues(out);
+  estilos.forEach(([row, e]) => {
+    const rg = sh.getRange(row, 1, 1, 4);
+    if (e === "titulo") rg.setFontWeight("bold").setFontSize(14);
+    if (e === "negrito") rg.setFontWeight("bold");
+    if (e === "secao") rg.setFontWeight("bold").setBackground("#0f1b3d").setFontColor("#ffffff");
+    if (e === "tipo") rg.setFontWeight("bold").setBackground("#ffc23d");
+    if (e === "cabecalho") rg.setFontWeight("bold").setBackground("#e6ecff");
+  });
+  sh.setColumnWidths(1, 4, 150);
+  ss.setActiveSheet(sh);
+  try { SpreadsheetApp.getUi().alert("Relatório gerado na aba \"Fornecedor\". Para PDF: Arquivo → Fazer download → PDF."); } catch (e) {}
+}
+
+function lerItens_() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(ABA_PEDIDOS);
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, CABECALHO.length).getValues()
+    .map((r) => ({
+      tipo: r[COL.tipo - 1], modelo: r[COL.modelo - 1], tamanho: String(r[COL.tamanho - 1]).replace(/^'/, ""),
+      qtd: Number(r[COL.qtd - 1]) || 0, nomeCamisa: String(r[COL.nomeCamisa - 1] || "").trim(),
+    }))
+    .filter((l) => l.qtd > 0);
+}
+const somar_ = (its) => its.reduce((s, l) => s + l.qtd, 0);
+function ordem_(l) {
+  const ms = Object.keys(TAMANHOS);
+  return TIPOS.indexOf(l.tipo) * 1000 + ms.indexOf(l.modelo) * 100 + (TAMANHOS[l.modelo] || []).indexOf(l.tamanho);
 }
 
 function doGet() {
@@ -63,10 +153,10 @@ function doPost(e) {
     if (nome.length < 3) return json({ ok: false, erro: "Informe seu nome." });
     if (telefone.replace(/\D/g, "").length < 10) return json({ ok: false, erro: "Telefone inválido." });
 
-    const itens = (dados.itens || []).filter(
-      (i) => TIPOS.includes(i.tipo) && TAMANHOS[i.modelo] && TAMANHOS[i.modelo].includes(i.tamanho) &&
-        Number.isInteger(i.qtd) && i.qtd >= 1 && i.qtd <= 20
-    );
+    const itens = (dados.itens || [])
+      .filter((i) => TIPOS.includes(i.tipo) && TAMANHOS[i.modelo] && TAMANHOS[i.modelo].includes(i.tamanho) &&
+        Number.isInteger(i.qtd) && i.qtd >= 1 && i.qtd <= 20)
+      .map((i) => ({ ...i, nomeCamisa: String(i.nomeCamisa || "").trim().toUpperCase().slice(0, NOME_MAX).replace(/^[=+\-@]/, "") }));
     if (!itens.length) return json({ ok: false, erro: "Pedido sem itens válidos." });
 
     const lock = LockService.getScriptLock();
@@ -79,12 +169,15 @@ function doPost(e) {
 
       const agora = new Date();
       const inicio = sh.getLastRow() + 1;
-      const linhas = itens.map((i, k) => [
-        agora, id, nome, "'" + telefone, i.tipo, i.modelo, i.tamanho, i.qtd,
-        `=H${inicio + k}*${ABA_RESUMO}!$B$2`, false, "",
-      ]);
+      const linhas = itens.map((i, k) => {
+        const r = inicio + k;
+        return [
+          agora, id, "'" + nome, "'" + telefone, i.tipo, i.modelo, i.tamanho, i.qtd, i.nomeCamisa,
+          `=H${r}*(${ABA_RESUMO}!$B$2+IF(I${r}<>"",${PRECO_NOME},0))`, false, "",
+        ];
+      });
       sh.getRange(inicio, 1, linhas.length, CABECALHO.length).setValues(linhas);
-      sh.getRange(inicio, 10, linhas.length, 1).insertCheckboxes();
+      sh.getRange(inicio, COL.pago, linhas.length, 1).insertCheckboxes();
       SpreadsheetApp.flush();
 
       const total = totalUnidades_();
@@ -102,12 +195,14 @@ function totalUnidades_() {
   const sh = SpreadsheetApp.getActive().getSheetByName(ABA_PEDIDOS);
   const n = sh.getLastRow() - 1;
   if (n < 1) return 0;
-  return sh.getRange(2, 8, n, 1).getValues().reduce((s, [q]) => s + (Number(q) || 0), 0);
+  return sh.getRange(2, COL.qtd, n, 1).getValues().reduce((s, [q]) => s + (Number(q) || 0), 0);
 }
 
 function avisar_(id, nome, telefone, itens, total) {
   try {
-    const linhas = itens.map((i) => `• ${i.qtd}x ${i.modelo} ${i.tamanho} (${i.tipo})`).join("\n");
+    const linhas = itens
+      .map((i) => `• ${i.qtd}x ${i.modelo} ${i.tamanho} (${i.tipo})${i.nomeCamisa ? ` - nome: ${i.nomeCamisa}` : ""}`)
+      .join("\n");
     MailApp.sendEmail(
       Session.getEffectiveUser().getEmail(),
       `Novo pedido nº ${id} — ${nome}`,
