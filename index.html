@@ -30,13 +30,16 @@
       <strong>Modo demonstração:</strong> os pedidos ficam salvos só neste navegador.
     </div>
 
-    <!-- Progresso do desconto -->
-    <section class="card progress-card" aria-live="polite">
-      <div class="progress-head">
-        <span class="label">Camisas pedidas pelo grupo</span>
-        <span class="count"><b id="total-grupo">0</b> / <span id="meta">30</span></span>
+    <!-- Contador de camisas -->
+    <section class="card counter-card" aria-live="polite">
+      <div class="counter">
+        <span class="label">Camisas solicitadas</span>
+        <b class="counter-num" id="total-grupo">0</b>
       </div>
-      <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+      <div class="tiers">
+        <div class="tier" id="tier-normal"><span>Até <b class="meta">29</b> camisas</span><strong id="preco-normal">R$ 50</strong></div>
+        <div class="tier" id="tier-desconto"><span>A partir de <b class="meta-desc">30</b></span><strong id="preco-desconto">R$ 45</strong></div>
+      </div>
       <p class="progress-msg" id="progress-msg">Carregando…</p>
     </section>
 

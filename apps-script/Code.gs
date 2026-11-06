@@ -7,7 +7,7 @@
 const PRAZO = new Date("2026-11-25T23:59:59-03:00"); // mesmo prazo do config.js
 const PRECO_NORMAL = 50;
 const PRECO_DESCONTO = 45;
-const MINIMO_DESCONTO = 31; // total do grupo a partir do qual vale o desconto
+const MINIMO_DESCONTO = 30; // total do grupo a partir do qual vale o desconto
 const AVISAR_POR_EMAIL = true; // manda um e-mail para você a cada pedido
 
 const TIPOS = ["Com mangas", "Regata"];

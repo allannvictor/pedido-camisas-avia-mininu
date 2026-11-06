@@ -49,9 +49,9 @@ Esse link é o que vocês mandam no grupo do WhatsApp.
 
 ## Regras de preço
 
-- Até 30 camisas no total do grupo: **R$ 50,00** cada.
-- A partir da 31ª: **R$ 45,00** para todo mundo.
-- O site mostra uma barra de progresso até a meta. Se a meta for batida depois que alguém
+- Até 29 camisas no total do grupo: **R$ 50,00** cada.
+- A partir de 30 camisas: **R$ 45,00** para todo mundo.
+- O site mostra o contador "Camisas solicitadas" e as duas faixas de preço. Se a meta for batida depois que alguém
   já pagou, a diferença é acertada com a organização (o site avisa isso).
 
 Para mudar o prazo ou os preços, altere **os dois** arquivos: `config.js` e `Code.gs`.

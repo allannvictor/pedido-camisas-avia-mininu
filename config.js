@@ -16,7 +16,7 @@ window.CONFIG = {
   PRECO_NORMAL: 50,
   PRECO_DESCONTO: 45,
   // A partir de quantas camisas NO TOTAL DO GRUPO o preço cai
-  MINIMO_DESCONTO: 31,
+  MINIMO_DESCONTO: 30,
 
   // Pagamento via Pix (deixe vazio até ter a chave)
   PIX_CHAVE: "",

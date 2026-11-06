@@ -4,7 +4,6 @@
   const C = window.CONFIG;
   const $ = (id) => document.getElementById(id);
   const DEMO = !C.API_URL;
-  const META = C.MINIMO_DESCONTO - 1; // camisas até as quais vale o preço normal
   const prazo = new Date(C.PRAZO);
 
   const ICONES = {
@@ -105,17 +104,21 @@
     const preco = precoPara(comCarrinho);
     $("preco-atual").textContent = brl(preco).replace(",00", "");
     $("total-grupo").textContent = total;
-    $("meta").textContent = META;
-    $("bar-fill").style.width = Math.min(100, (total / C.MINIMO_DESCONTO) * 100) + "%";
+    document.querySelector(".meta").textContent = C.MINIMO_DESCONTO - 1;
+    document.querySelector(".meta-desc").textContent = C.MINIMO_DESCONTO;
+    $("preco-normal").textContent = brl(C.PRECO_NORMAL).replace(",00", "");
+    $("preco-desconto").textContent = brl(C.PRECO_DESCONTO).replace(",00", "");
+    $("tier-normal").classList.toggle("active", preco === C.PRECO_NORMAL);
+    $("tier-desconto").classList.toggle("active", preco === C.PRECO_DESCONTO);
 
     const falta = C.MINIMO_DESCONTO - comCarrinho;
     let msg;
     if (total >= C.MINIMO_DESCONTO) {
-      msg = `Meta batida! Todo mundo paga <b>${brl(C.PRECO_DESCONTO)}</b> por camisa.`;
+      msg = `O grupo já chegou a ${C.MINIMO_DESCONTO} camisas: todo mundo paga <b>${brl(C.PRECO_DESCONTO)}</b>.`;
     } else if (falta <= 0) {
-      msg = `Com o seu pedido o grupo passa de ${META} camisas e o preço cai para <b>${brl(C.PRECO_DESCONTO)}</b>!`;
+      msg = `Com o seu pedido o grupo chega a ${C.MINIMO_DESCONTO} camisas e o preço cai para <b>${brl(C.PRECO_DESCONTO)}</b>!`;
     } else {
-      msg = `Faltam <b>${falta}</b> camisa(s) para o preço cair de ${brl(C.PRECO_NORMAL)} para <b>${brl(C.PRECO_DESCONTO)}</b>.`;
+      msg = `A partir de ${C.MINIMO_DESCONTO} camisas no total do grupo, o valor cai para <b>${brl(C.PRECO_DESCONTO)}</b> para todo mundo.`;
     }
     $("progress-msg").innerHTML = msg;
   }
@@ -222,7 +225,7 @@
     $("aviso-desconto").textContent =
       res.totalUnidades >= C.MINIMO_DESCONTO
         ? ""
-        : `Se o grupo passar de ${META} camisas, o preço cai para ${brl(C.PRECO_DESCONTO)} e a diferença é acertada com a organização.`;
+        : `Se o grupo chegar a ${C.MINIMO_DESCONTO} camisas, o preço cai para ${brl(C.PRECO_DESCONTO)} e a diferença é acertada com a organização.`;
 
     if (C.WHATSAPP_ORGANIZADOR) {
       const linhas = pedido.itens.map((i) => `• ${i.qtd}x ${i.modelo} ${i.tamanho} (${i.tipo})`).join("\n");
