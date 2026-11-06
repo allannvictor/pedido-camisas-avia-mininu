@@ -143,6 +143,7 @@ main { margin-top: -40px; }
 
 /* ---------- Tipo ---------- */
 .tipo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.encerrado .card:not(:last-child) { opacity: .55; pointer-events: none; }
 .tipo {
   border: 2px solid var(--line);
   background: var(--card);
@@ -175,7 +176,7 @@ main { margin-top: -40px; }
 .nome-camisa input { text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
 .nome-camisa small { display: block; margin-top: 6px; font-size: 13px; }
 .stepper.locked { opacity: .5; }
-.cart .tag { display: inline-block; margin-top: 3px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px; letter-spacing: .03em; }
+.cart .tag { display: inline-block; margin-top: 4px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px; letter-spacing: .03em; }
 .cart .price { font-weight: 700; font-size: 14px; white-space: nowrap; }
 .segmented button[aria-checked="true"] { background: var(--card); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); color: var(--accent); }
 
@@ -303,3 +304,33 @@ main { margin-top: -40px; }
 }
 .success .cart-total { gap: 12px; }
 .success .cart-total span { text-align: left; font-size: 14px; color: var(--muted); }
+
+/* ---------- Pagamento ---------- */
+.pagar { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.pagar span { font-weight: 600; color: var(--muted); }
+.pagar strong { font-family: Archivo, sans-serif; font-size: 26px; }
+#pagamento-card .pix { margin-top: 12px; text-align: center; }
+.field-label { display: block; font-weight: 600; font-size: 14px; margin: 18px 0 8px; }
+.field-label em { font-style: normal; color: var(--danger); font-weight: 600; }
+.upload {
+  display: flex; align-items: center; gap: 14px;
+  border: 2px dashed var(--line); border-radius: 14px; padding: 14px;
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.upload:hover, .upload:focus-within { border-color: var(--accent); background: var(--accent-soft); }
+.upload.invalid { border-color: var(--danger); }
+.upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.upload-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--accent-soft); flex: none; }
+.upload-icon svg { width: 22px; height: 22px; fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.upload-text, .upload-file { display: grid; gap: 2px; min-width: 0; }
+.upload-text small, .upload-file small { color: var(--muted); font-size: 13px; }
+.upload-file b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-ok {
+  display: flex; align-items: center; gap: 12px;
+  border: 2px solid var(--ok); border-radius: 14px; padding: 10px 12px;
+  background: rgba(26, 155, 92, .08);
+}
+.upload-ok img { width: 48px; height: 48px; object-fit: cover; border-radius: 8px; flex: none; }
+.upload-ok .upload-file { flex: 1; }
+.upload-ok .rm { border: 0; background: transparent; color: var(--muted); width: 36px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 20px; }
+.comprovante-ok { margin: 16px 0 0; color: var(--ok); font-weight: 700; }

@@ -20,7 +20,8 @@ Enquanto `API_URL` estiver vazio no `config.js`, o site roda em **modo demonstra
 4. No seletor de função (no topo), escolha **`configurarPlanilha`** e clique em **Executar**.
    O Google vai pedir autorização: clique em *Revisar permissões* → sua conta →
    *Avançado* → *Acessar (não seguro)* → *Permitir*. (É seguro, o código é seu.)
-   Isso cria as abas **Pedidos** e **Resumo**.
+   Isso cria as abas **Pedidos** e **Resumo** e a pasta **"Comprovantes - Novo Manto Avia Mininu"**
+   no seu Google Drive (por isso o Google pede acesso à Planilha, ao Drive e ao Gmail).
 5. Clique em **Implantar → Nova implantação**:
    - Tipo: **App da Web**
    - Executar como: **Eu**
@@ -42,15 +43,22 @@ Esse link é o que vocês mandam no grupo do WhatsApp.
 ## 3. Dia a dia
 
 - **Aba Pedidos:** uma linha por item, com o nº do pedido, nome e telefone.
-  Marque a caixinha **Pago?** quando receber o Pix.
+  Cada pedido traz o link **"ver comprovante"** (o arquivo fica na pasta de comprovantes do
+  seu Drive, visível só para você). Confira e marque a caixinha **Pago?**.
 - **Aba Resumo:** total de camisas, preço em vigor (50 ou 45), camisas com nome,
   valor total e valor já pago.
 - **Relatório do fornecedor:** na planilha, menu **Pedido → Gerar relatório do fornecedor**.
-  Cria a aba **Fornecedor** com as quantidades por tipo, modelo e tamanho (separando sem nome e
+  Cria a aba **Fornecedor** com as quantidades por tipo (Tradicional, Baby Look, Regata, Infantil) e tamanho (separando sem nome e
   com nome) e a lista de todos os nomes que vão nas camisas. Para mandar como PDF:
   **Arquivo → Fazer download → PDF**. Pode gerar quantas vezes quiser; ele sempre se atualiza.
   (Se o menu não aparecer, recarregue a planilha.)
 - A cada pedido você recebe um **e-mail** (pode desligar em `AVISAR_POR_EMAIL`).
+
+## Pagamento
+
+O comprovante do Pix é **obrigatório**: a pessoa vê o valor a pagar e a chave Pix antes de
+enviar, paga, anexa a foto/print/PDF do comprovante (até 5 MB) e só então consegue enviar.
+Fotos grandes são reduzidas automaticamente antes do envio.
 
 ## Regras de preço
 

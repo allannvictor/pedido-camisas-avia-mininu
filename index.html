@@ -17,7 +17,7 @@
     <div class="wrap">
       <span class="badge" id="prazo-badge">Pedidos abertos</span>
       <h1 id="titulo">Novo Manto<br /><span>Avia Mininu</span></h1>
-      <p class="hero-sub">Escolha o tipo, o modelo e o tamanho. Leva menos de um minuto.</p>
+      <p class="hero-sub">Escolha o tipo e o tamanho. Leva menos de um minuto.</p>
       <div class="price-pill">
         <strong id="preco-atual">R$ 50</strong>
         <span>por camisa</span>
@@ -46,7 +46,7 @@
     <!-- Pedido fechado -->
     <section class="card closed" id="closed" hidden>
       <h2>Pedidos encerrados</h2>
-      <p>O prazo terminou. Fale com a organização se precisar de algo.</p>
+      <p id="closed-text">O prazo terminou. Fale com a organização se precisar de algo.</p>
     </section>
 
     <form id="form" novalidate>
@@ -55,13 +55,10 @@
         <h2><span class="step">1</span> Tipo</h2>
         <div class="tipo-grid" id="tipos" role="radiogroup" aria-label="Tipo de camisa"></div>
 
-        <h2><span class="step">2</span> Modelo</h2>
-        <div class="segmented" id="modelos" role="radiogroup" aria-label="Modelo"></div>
-
-        <h2><span class="step">3</span> Tamanho</h2>
+        <h2><span class="step">2</span> Tamanho</h2>
         <div class="chips" id="tamanhos" role="radiogroup" aria-label="Tamanho"></div>
 
-        <h2><span class="step">4</span> Nome na camisa?</h2>
+        <h2><span class="step">3</span> Nome na camisa?</h2>
         <div class="segmented two" id="personalizar" role="radiogroup" aria-label="Nome na camisa">
           <button type="button" role="radio" aria-checked="true" data-v="nao">Sem nome</button>
           <button type="button" role="radio" aria-checked="false" data-v="sim">Com nome <small id="preco-nome-label">+ R$ 10</small></button>
@@ -85,7 +82,7 @@
 
       <!-- Carrinho -->
       <section class="card" id="carrinho-card">
-        <h2><span class="step">5</span> Seu pedido</h2>
+        <h2><span class="step">4</span> Seu pedido</h2>
         <ul class="cart" id="cart"></ul>
         <p class="empty" id="cart-empty">Nenhuma camisa adicionada ainda.</p>
         <div class="cart-total" id="cart-total" hidden>
@@ -96,7 +93,7 @@
 
       <!-- Dados -->
       <section class="card">
-        <h2><span class="step">6</span> Seus dados</h2>
+        <h2><span class="step">5</span> Seus dados</h2>
         <label class="field">
           <span>Nome</span>
           <input id="nome" name="nome" autocomplete="name" placeholder="Seu nome completo" required maxlength="80" />
@@ -107,6 +104,37 @@
         </label>
         <!-- campo anti-spam, invisível para pessoas -->
         <input type="text" name="site" id="site" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+      </section>
+
+      <!-- Pagamento -->
+      <section class="card" id="pagamento-card">
+        <h2><span class="step">6</span> Pagamento</h2>
+        <div class="pagar">
+          <span>Valor a pagar</span>
+          <strong id="pagar-valor">R$ 0,00</strong>
+        </div>
+        <div class="pix">
+          <span class="label">Pix · chave aleatória</span>
+          <div class="pix-key pending" id="pix-key">Chave Pix será informada em breve</div>
+          <span class="muted small" id="pix-nome"></span>
+          <button type="button" class="btn btn-secondary" id="copiar-pix" hidden>Copiar chave Pix</button>
+        </div>
+        <p class="hint" id="aviso-desconto"></p>
+
+        <span class="field-label">Comprovante do Pix <em>(obrigatório)</em></span>
+        <label class="upload" id="upload">
+          <input type="file" id="comprovante" accept="image/*,application/pdf" />
+          <span class="upload-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-5 5m5-5 5 5M5 20h14" /></svg>
+          </span>
+          <span class="upload-text"><b>Anexar comprovante</b><small>Foto, print ou PDF · até 5 MB</small></span>
+        </label>
+        <div class="upload-ok" id="upload-ok" hidden>
+          <img id="upload-thumb" alt="" hidden />
+          <span class="upload-file"><b id="upload-nome"></b><small id="upload-info"></small></span>
+          <button type="button" class="rm" id="upload-rm" aria-label="Remover comprovante">×</button>
+        </div>
+
         <p class="error" id="erro" role="alert" hidden></p>
         <button type="submit" class="btn btn-primary" id="enviar">Enviar pedido</button>
         <p class="hint center" id="prazo-texto"></p>
@@ -126,15 +154,10 @@
         <strong id="sucesso-valor"></strong>
       </div>
 
-      <div class="pix">
-        <span class="label">Pague via Pix · chave aleatória</span>
-        <div class="pix-key pending" id="pix-key">Chave Pix será informada em breve</div>
-        <span class="muted small" id="pix-nome"></span>
-        <button type="button" class="btn btn-secondary" id="copiar-pix" hidden>Copiar chave Pix</button>
-      </div>
-      <p class="hint" id="aviso-desconto"></p>
+      <p class="comprovante-ok">✓ Comprovante do Pix recebido</p>
+      <p class="hint" id="sucesso-aviso"></p>
 
-      <a class="btn btn-whats" id="whats" target="_blank" rel="noopener" hidden>Enviar comprovante no WhatsApp</a>
+      <a class="btn btn-whats" id="whats" target="_blank" rel="noopener" hidden>Falar com a organização</a>
       <button type="button" class="btn btn-ghost" id="novo">Fazer outro pedido</button>
     </section>
   </main>

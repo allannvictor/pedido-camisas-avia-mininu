@@ -7,18 +7,22 @@
   const prazo = new Date(C.PRAZO);
 
   const ICONES = {
-    manga:
+    tradicional:
       '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M22 8 12 12 4 24l8 6 4-4v30h32V26l4 4 8-6-8-12-10-4c-2 4-6 6-10 6s-8-2-10-6Z"/></svg>',
+    babylook:
+      '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M23 9 15 12 8 22l7 5 4-3c1 7-3 12-3 18 0 5 1 10 2 14h30c1-4 2-9 2-14 0-6-4-11-3-18l4 3 7-5-7-10-8-3c-2 3-5 5-9 5s-7-2-9-5Z"/></svg>',
+    infantil:
+      '<svg viewBox="0 0 64 64" aria-hidden="true"><path transform="translate(11 16) scale(.66)" d="M22 8 12 12 4 24l8 6 4-4v30h32V26l4 4 8-6-8-12-10-4c-2 4-6 6-10 6s-8-2-10-6Z"/></svg>',
     regata:
       '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M21 5v8c0 8-4 13-6 15v30h34V28c-2-2-6-7-6-15V5h-6c0 7-2 11-5 11s-5-4-5-11h-6Z"/></svg>',
   };
 
   const state = {
     tipo: C.TIPOS[0].id,
-    modelo: C.MODELOS[0].id,
     tamanho: null,
     qtd: 1,
     comNome: false,
+    comprovante: null, // { nome, tipo, dados (base64), kb }
     cart: [],
     totalGrupo: 0,
   };
@@ -31,8 +35,8 @@
   const valorTotal = (itens, preco) => itens.reduce((s, i) => s + valorItem(i, preco), 0);
   const itemHtml = (i, preco, remover) => `
         <span class="qty">${i.qtd}x</span>
-        <span class="desc"><strong>${esc(i.modelo)} · ${esc(i.tamanho)}</strong><span>${esc(i.tipo)}</span>${
-          i.nomeCamisa ? `<br><span class="tag">NOME: ${esc(i.nomeCamisa)}</span>` : ""}</span>
+        <span class="desc"><strong>${esc(i.tipo)} · ${esc(i.tamanho)}</strong>${
+          i.nomeCamisa ? `<span class="tag">NOME: ${esc(i.nomeCamisa)}</span>` : "<span>Sem nome</span>"}</span>
         <span class="price">${brl(valorItem(i, preco))}</span>${
           remover ? '<button type="button" class="rm" aria-label="Remover">×</button>' : ""}`;
   const esc = (s) =>
@@ -62,23 +66,19 @@
 
   // ---------- render ----------
   function renderTipos() {
-    radioGroup($("tipos"), C.TIPOS, state.tipo, (id) => { state.tipo = id; renderTipos(); },
+    radioGroup($("tipos"), C.TIPOS, state.tipo, (id) => {
+      state.tipo = id;
+      state.tamanho = null;
+      renderTipos();
+      renderTamanhos();
+    },
       (t) => `${ICONES[t.icone] || ""}<strong>${esc(t.id)}</strong><small>${esc(t.descricao)}</small>`);
     [...$("tipos").children].forEach((b) => b.classList.add("tipo"));
   }
 
-  function renderModelos() {
-    radioGroup($("modelos"), C.MODELOS, state.modelo, (id) => {
-      state.modelo = id;
-      state.tamanho = null;
-      renderModelos();
-      renderTamanhos();
-    }, (m) => esc(m.id));
-  }
-
   function renderTamanhos() {
-    const modelo = C.MODELOS.find((m) => m.id === state.modelo);
-    radioGroup($("tamanhos"), modelo.tamanhos.map((t) => ({ id: t })), state.tamanho,
+    const tipo = C.TIPOS.find((t) => t.id === state.tipo);
+    radioGroup($("tamanhos"), tipo.tamanhos.map((t) => ({ id: t })), state.tamanho,
       (id) => { state.tamanho = id; $("add-hint").textContent = ""; renderTamanhos(); },
       (t) => esc(t.id));
   }
@@ -102,6 +102,13 @@
     $("cart-total").hidden = qtd === 0;
     $("total-qtd").textContent = qtd;
     $("total-valor").textContent = brl(valorTotal(state.cart, preco));
+    $("pagar-valor").textContent = brl(valorTotal(state.cart, preco));
+    const atingido = state.totalGrupo + qtd >= C.MINIMO_DESCONTO;
+    $("aviso-desconto").textContent = qtd === 0
+      ? "Adicione as camisas para ver o valor."
+      : atingido
+        ? ""
+        : `Se o grupo chegar a ${C.MINIMO_DESCONTO} camisas, o preço cai para ${brl(C.PRECO_DESCONTO)} e a diferença é acertada com a organização.`;
     renderProgresso();
   }
 
@@ -130,16 +137,30 @@
     $("progress-msg").innerHTML = msg;
   }
 
+  const estaAberto = () => Date.now() < prazo.getTime();
+
   function renderPrazo() {
-    const fmt = prazo.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
-    const dias = Math.ceil((prazo - Date.now()) / 86400000);
-    const aberto = Date.now() < prazo.getTime();
-    $("prazo-badge").textContent = aberto
-      ? `Pedidos até ${fmt}${dias <= 3 ? ` · faltam ${dias} dia(s)` : ""}`
-      : "Pedidos encerrados";
-    $("prazo-texto").textContent = aberto ? `Você pode fazer pedidos até ${fmt}.` : "";
-    $("form").hidden = !aberto;
+    const tz = { timeZone: "America/Sao_Paulo" };
+    const dia = prazo.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", ...tz });
+    const hora = prazo.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", ...tz }).replace(":00", "h");
+    const quando = `${dia} às ${hora}`;
+    const ms = prazo - Date.now();
+    const aberto = ms > 0;
+    let falta = "";
+    if (aberto && ms < 3600000) falta = " · falta menos de 1h";
+    else if (aberto && ms < 86400000) falta = ` · faltam ${Math.ceil(ms / 3600000)}h`;
+    else if (aberto && ms < 3 * 86400000) falta = ` · faltam ${Math.ceil(ms / 86400000)} dia(s)`;
+    $("prazo-badge").textContent = aberto ? `Pedidos até ${quando}${falta}` : "Pedidos encerrados";
+    $("prazo-texto").textContent = aberto ? `Pedidos até ${quando} (horário de Brasília).` : "";
+    $("closed-text").textContent = `O prazo terminou em ${quando}. Fale com a organização se precisar de algo.`;
     $("closed").hidden = aberto;
+    $("form").classList.toggle("encerrado", !aberto);
+    $("add").disabled = !aberto;
+    $("comprovante").disabled = !aberto;
+    $("nome").disabled = !aberto;
+    $("telefone").disabled = !aberto;
+    $("enviar").disabled = !aberto;
+    $("enviar").textContent = aberto ? "Enviar pedido" : "Pedidos encerrados";
   }
 
   // ---------- ações ----------
@@ -160,6 +181,7 @@
   $("preco-nome-label").textContent = `+ ${brl(C.PRECO_NOME).replace(",00", "")}`;
 
   $("add").addEventListener("click", () => {
+    if (!estaAberto()) return renderPrazo();
     if (!state.tamanho) {
       $("add-hint").textContent = "Escolha um tamanho antes de adicionar.";
       $("tamanhos").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -172,11 +194,11 @@
       return;
     }
     const existente = !nomeCamisa && state.cart.find(
-      (i) => i.tipo === state.tipo && i.modelo === state.modelo && i.tamanho === state.tamanho && !i.nomeCamisa
+      (i) => i.tipo === state.tipo && i.tamanho === state.tamanho && !i.nomeCamisa
     );
     if (existente) existente.qtd += state.qtd;
-    else state.cart.push({ tipo: state.tipo, modelo: state.modelo, tamanho: state.tamanho, qtd: state.qtd, nomeCamisa });
-    toast(`${state.qtd}x ${state.modelo} ${state.tamanho}${nomeCamisa ? ` "${nomeCamisa}"` : ""} adicionada(s)`);
+    else state.cart.push({ tipo: state.tipo, tamanho: state.tamanho, qtd: state.qtd, nomeCamisa });
+    toast(`${state.qtd}x ${state.tipo} ${state.tamanho}${nomeCamisa ? ` "${nomeCamisa}"` : ""} adicionada(s)`);
     $("add-hint").textContent = "";
     $("nome-camisa").value = "";
     setComNome(false);
@@ -205,6 +227,10 @@
 
   $("form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (!estaAberto()) {
+      renderPrazo();
+      return erro("O prazo de pedidos terminou.");
+    }
     const nome = $("nome").value.trim();
     const telefone = $("telefone").value.trim();
     const digitos = telefone.replace(/\D/g, "");
@@ -216,9 +242,16 @@
     }
     if (nome.length < 3) return erro("Informe seu nome.", $("nome"));
     if (digitos.length < 10) return erro("Informe um telefone válido com DDD.", $("telefone"));
+    if (!state.comprovante) {
+      erro("Anexe o comprovante do Pix para enviar o pedido.");
+      $("upload").classList.add("invalid");
+      $("upload").scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     erro("");
 
-    const pedido = { nome, telefone, itens: state.cart, site: $("site").value };
+    const valor = valorTotal(state.cart, precoPara(state.totalGrupo + qtdCarrinho()));
+    const pedido = { nome, telefone, itens: state.cart, valor, comprovante: state.comprovante, site: $("site").value };
     const btn = $("enviar");
     btn.disabled = true;
     btn.textContent = "Enviando…";
@@ -230,37 +263,30 @@
     } catch (err) {
       erro(err.message || "Falha de conexão. Tente de novo.");
     } finally {
-      btn.disabled = false;
-      btn.textContent = "Enviar pedido";
+      renderPrazo();
     }
   });
 
   function mostrarSucesso(pedido, res) {
     const qtd = pedido.itens.reduce((s, i) => s + i.qtd, 0);
-    const preco = precoPara(res.totalUnidades);
+    const total = pedido.valor;
+    const preco = valorTotal(pedido.itens, C.PRECO_DESCONTO) === total ? C.PRECO_DESCONTO : C.PRECO_NORMAL;
     $("sucesso-id").textContent = `${pedido.nome.split(" ")[0]}, seu pedido nº ${res.id} foi registrado.`;
-    const total = valorTotal(pedido.itens, preco);
     const comNome = pedido.itens.filter((i) => i.nomeCamisa).reduce((s, i) => s + i.qtd, 0);
     $("sucesso-itens").innerHTML = pedido.itens.map((i) => `<li>${itemHtml(i, preco, false)}</li>`).join("");
     $("sucesso-qtd").textContent = `${qtd} camisa(s) × ${brl(preco)}${comNome ? ` + ${comNome} nome(s)` : ""}`;
     $("sucesso-valor").textContent = brl(total);
 
-    if (C.PIX_CHAVE) {
-      $("pix-key").textContent = C.PIX_CHAVE;
-      $("pix-key").classList.remove("pending");
-      $("copiar-pix").hidden = false;
-    }
-    $("pix-nome").textContent = C.PIX_NOME ? `Favorecido: ${C.PIX_NOME}` : "";
-    $("aviso-desconto").textContent =
-      res.totalUnidades >= C.MINIMO_DESCONTO
+    $("sucesso-aviso").textContent =
+      preco === C.PRECO_DESCONTO
         ? ""
         : `Se o grupo chegar a ${C.MINIMO_DESCONTO} camisas, o preço cai para ${brl(C.PRECO_DESCONTO)} e a diferença é acertada com a organização.`;
 
     if (C.WHATSAPP_ORGANIZADOR) {
       const linhas = pedido.itens
-        .map((i) => `• ${i.qtd}x ${i.modelo} ${i.tamanho} (${i.tipo})${i.nomeCamisa ? ` - nome: ${i.nomeCamisa}` : ""}`)
+        .map((i) => `• ${i.qtd}x ${i.tipo} ${i.tamanho}${i.nomeCamisa ? ` - nome: ${i.nomeCamisa}` : ""}`)
         .join("\n");
-      const texto = `Olá! Fiz o pedido nº ${res.id} do ${C.TITULO}.\nNome: ${pedido.nome}\n${linhas}\nTotal: ${brl(total)}\nSegue o comprovante do Pix:`;
+      const texto = `Olá! Fiz o pedido nº ${res.id} do ${C.TITULO}.\nNome: ${pedido.nome}\n${linhas}\nTotal pago: ${brl(total)} (comprovante anexado no site).`;
       $("whats").href = `https://wa.me/${C.WHATSAPP_ORGANIZADOR}?text=${encodeURIComponent(texto)}`;
       $("whats").hidden = false;
     }
@@ -268,9 +294,102 @@
     $("form").hidden = true;
     $("sucesso").hidden = false;
     state.cart = [];
+    limparComprovante();
     renderCart();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  // ---------- comprovante ----------
+  const LIMITE_MB = 5;
+  const TIPOS_OK = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"];
+
+  function lerComoDataURL(file) {
+    return new Promise((ok, falha) => {
+      const r = new FileReader();
+      r.onload = () => ok(r.result);
+      r.onerror = () => falha(r.error);
+      r.readAsDataURL(file);
+    });
+  }
+
+  // Reduz fotos grandes para enviar mais rápido (máx. 1600 px, JPEG).
+  async function comprimirImagem(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, falha) => {
+        const i = new Image();
+        i.onload = () => ok(i);
+        i.onerror = falha;
+        i.src = url;
+      });
+      const escala = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * escala);
+      c.height = Math.round(img.naturalHeight * escala);
+      const g = c.getContext("2d");
+      g.fillStyle = "#fff";
+      g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(img, 0, 0, c.width, c.height);
+      return c.toDataURL("image/jpeg", 0.82);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function limparComprovante() {
+    state.comprovante = null;
+    $("comprovante").value = "";
+    $("upload").hidden = false;
+    $("upload-ok").hidden = true;
+    $("upload-thumb").hidden = true;
+  }
+
+  $("comprovante").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    $("upload").classList.remove("invalid");
+    const ehPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    const ehImagem = file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name);
+    if (!ehPdf && !ehImagem) {
+      limparComprovante();
+      return erro("Envie uma foto, print ou PDF do comprovante.");
+    }
+    try {
+      let dataUrl, tipo, nome = file.name;
+      if (ehImagem) {
+        try {
+          dataUrl = await comprimirImagem(file);
+          tipo = "image/jpeg";
+          nome = nome.replace(/\.[^.]+$/, "") + ".jpg";
+        } catch {
+          dataUrl = await lerComoDataURL(file); // navegador não abriu a imagem: envia como está
+          tipo = file.type || "image/jpeg";
+        }
+      } else {
+        dataUrl = await lerComoDataURL(file);
+        tipo = "application/pdf";
+      }
+      const dados = dataUrl.split(",")[1];
+      const kb = Math.round((dados.length * 3) / 4 / 1024);
+      if (kb > LIMITE_MB * 1024) {
+        limparComprovante();
+        return erro(`O arquivo passou de ${LIMITE_MB} MB. Tente um print da tela do comprovante.`);
+      }
+      if (!TIPOS_OK.includes(tipo)) tipo = ehPdf ? "application/pdf" : "image/jpeg";
+      state.comprovante = { nome, tipo, dados, kb };
+      $("upload-nome").textContent = file.name;
+      $("upload-info").textContent = `${kb < 1024 ? kb + " KB" : (kb / 1024).toFixed(1) + " MB"} · pronto para enviar`;
+      $("upload-thumb").hidden = tipo === "application/pdf";
+      if (tipo !== "application/pdf") $("upload-thumb").src = dataUrl;
+      $("upload").hidden = true;
+      $("upload-ok").hidden = false;
+      erro("");
+    } catch {
+      limparComprovante();
+      erro("Não foi possível ler o arquivo. Tente outro.");
+    }
+  });
+  $("upload-rm").addEventListener("click", limparComprovante);
 
   $("copiar-pix").addEventListener("click", async () => {
     try {
@@ -292,7 +411,7 @@
     if (DEMO) {
       const lista = lerDemo();
       const id = lista.length + 1;
-      lista.push({ ...pedido, id, data: new Date().toISOString() });
+      lista.push({ ...pedido, comprovante: { nome: pedido.comprovante.nome }, id, data: new Date().toISOString() });
       try { localStorage.setItem("pedidos-demo", JSON.stringify(lista)); } catch {}
       await new Promise((r) => setTimeout(r, 500));
       return { ok: true, id, totalUnidades: somaDemo(lista) };
@@ -325,11 +444,17 @@
 
   // ---------- início ----------
   document.title = C.TITULO;
+  if (C.PIX_CHAVE) {
+    $("pix-key").textContent = C.PIX_CHAVE;
+    $("pix-key").classList.remove("pending");
+    $("copiar-pix").hidden = false;
+  }
+  $("pix-nome").textContent = C.PIX_NOME ? `Favorecido: ${C.PIX_NOME}` : "";
   $("demo-banner").hidden = !DEMO;
   renderTipos();
-  renderModelos();
   renderTamanhos();
   renderCart();
   renderPrazo();
+  setInterval(renderPrazo, 30000); // bloqueia sozinho se a página ficar aberta
   carregarTotal().then(renderCart);
 })();
