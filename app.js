@@ -22,6 +22,7 @@
     tamanho: null,
     qtd: 1,
     comNome: false,
+    comprovante: null, // { nome, tipo, dados (base64), kb }
     cart: [],
     totalGrupo: 0,
   };
@@ -101,6 +102,13 @@
     $("cart-total").hidden = qtd === 0;
     $("total-qtd").textContent = qtd;
     $("total-valor").textContent = brl(valorTotal(state.cart, preco));
+    $("pagar-valor").textContent = brl(valorTotal(state.cart, preco));
+    const atingido = state.totalGrupo + qtd >= C.MINIMO_DESCONTO;
+    $("aviso-desconto").textContent = qtd === 0
+      ? "Adicione as camisas para ver o valor."
+      : atingido
+        ? ""
+        : `Se o grupo chegar a ${C.MINIMO_DESCONTO} camisas, o preço cai para ${brl(C.PRECO_DESCONTO)} e a diferença é acertada com a organização.`;
     renderProgresso();
   }
 
@@ -148,6 +156,7 @@
     $("closed").hidden = aberto;
     $("form").classList.toggle("encerrado", !aberto);
     $("add").disabled = !aberto;
+    $("comprovante").disabled = !aberto;
     $("nome").disabled = !aberto;
     $("telefone").disabled = !aberto;
     $("enviar").disabled = !aberto;
@@ -233,9 +242,16 @@
     }
     if (nome.length < 3) return erro("Informe seu nome.", $("nome"));
     if (digitos.length < 10) return erro("Informe um telefone válido com DDD.", $("telefone"));
+    if (!state.comprovante) {
+      erro("Anexe o comprovante do Pix para enviar o pedido.");
+      $("upload").classList.add("invalid");
+      $("upload").scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     erro("");
 
-    const pedido = { nome, telefone, itens: state.cart, site: $("site").value };
+    const valor = valorTotal(state.cart, precoPara(state.totalGrupo + qtdCarrinho()));
+    const pedido = { nome, telefone, itens: state.cart, valor, comprovante: state.comprovante, site: $("site").value };
     const btn = $("enviar");
     btn.disabled = true;
     btn.textContent = "Enviando…";
@@ -253,22 +269,16 @@
 
   function mostrarSucesso(pedido, res) {
     const qtd = pedido.itens.reduce((s, i) => s + i.qtd, 0);
-    const preco = precoPara(res.totalUnidades);
+    const total = pedido.valor;
+    const preco = valorTotal(pedido.itens, C.PRECO_DESCONTO) === total ? C.PRECO_DESCONTO : C.PRECO_NORMAL;
     $("sucesso-id").textContent = `${pedido.nome.split(" ")[0]}, seu pedido nº ${res.id} foi registrado.`;
-    const total = valorTotal(pedido.itens, preco);
     const comNome = pedido.itens.filter((i) => i.nomeCamisa).reduce((s, i) => s + i.qtd, 0);
     $("sucesso-itens").innerHTML = pedido.itens.map((i) => `<li>${itemHtml(i, preco, false)}</li>`).join("");
     $("sucesso-qtd").textContent = `${qtd} camisa(s) × ${brl(preco)}${comNome ? ` + ${comNome} nome(s)` : ""}`;
     $("sucesso-valor").textContent = brl(total);
 
-    if (C.PIX_CHAVE) {
-      $("pix-key").textContent = C.PIX_CHAVE;
-      $("pix-key").classList.remove("pending");
-      $("copiar-pix").hidden = false;
-    }
-    $("pix-nome").textContent = C.PIX_NOME ? `Favorecido: ${C.PIX_NOME}` : "";
-    $("aviso-desconto").textContent =
-      res.totalUnidades >= C.MINIMO_DESCONTO
+    $("sucesso-aviso").textContent =
+      preco === C.PRECO_DESCONTO
         ? ""
         : `Se o grupo chegar a ${C.MINIMO_DESCONTO} camisas, o preço cai para ${brl(C.PRECO_DESCONTO)} e a diferença é acertada com a organização.`;
 
@@ -276,7 +286,7 @@
       const linhas = pedido.itens
         .map((i) => `• ${i.qtd}x ${i.tipo} ${i.tamanho}${i.nomeCamisa ? ` - nome: ${i.nomeCamisa}` : ""}`)
         .join("\n");
-      const texto = `Olá! Fiz o pedido nº ${res.id} do ${C.TITULO}.\nNome: ${pedido.nome}\n${linhas}\nTotal: ${brl(total)}\nSegue o comprovante do Pix:`;
+      const texto = `Olá! Fiz o pedido nº ${res.id} do ${C.TITULO}.\nNome: ${pedido.nome}\n${linhas}\nTotal pago: ${brl(total)} (comprovante anexado no site).`;
       $("whats").href = `https://wa.me/${C.WHATSAPP_ORGANIZADOR}?text=${encodeURIComponent(texto)}`;
       $("whats").hidden = false;
     }
@@ -284,9 +294,102 @@
     $("form").hidden = true;
     $("sucesso").hidden = false;
     state.cart = [];
+    limparComprovante();
     renderCart();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  // ---------- comprovante ----------
+  const LIMITE_MB = 5;
+  const TIPOS_OK = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf"];
+
+  function lerComoDataURL(file) {
+    return new Promise((ok, falha) => {
+      const r = new FileReader();
+      r.onload = () => ok(r.result);
+      r.onerror = () => falha(r.error);
+      r.readAsDataURL(file);
+    });
+  }
+
+  // Reduz fotos grandes para enviar mais rápido (máx. 1600 px, JPEG).
+  async function comprimirImagem(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((ok, falha) => {
+        const i = new Image();
+        i.onload = () => ok(i);
+        i.onerror = falha;
+        i.src = url;
+      });
+      const escala = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * escala);
+      c.height = Math.round(img.naturalHeight * escala);
+      const g = c.getContext("2d");
+      g.fillStyle = "#fff";
+      g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(img, 0, 0, c.width, c.height);
+      return c.toDataURL("image/jpeg", 0.82);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function limparComprovante() {
+    state.comprovante = null;
+    $("comprovante").value = "";
+    $("upload").hidden = false;
+    $("upload-ok").hidden = true;
+    $("upload-thumb").hidden = true;
+  }
+
+  $("comprovante").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    $("upload").classList.remove("invalid");
+    const ehPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    const ehImagem = file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name);
+    if (!ehPdf && !ehImagem) {
+      limparComprovante();
+      return erro("Envie uma foto, print ou PDF do comprovante.");
+    }
+    try {
+      let dataUrl, tipo, nome = file.name;
+      if (ehImagem) {
+        try {
+          dataUrl = await comprimirImagem(file);
+          tipo = "image/jpeg";
+          nome = nome.replace(/\.[^.]+$/, "") + ".jpg";
+        } catch {
+          dataUrl = await lerComoDataURL(file); // navegador não abriu a imagem: envia como está
+          tipo = file.type || "image/jpeg";
+        }
+      } else {
+        dataUrl = await lerComoDataURL(file);
+        tipo = "application/pdf";
+      }
+      const dados = dataUrl.split(",")[1];
+      const kb = Math.round((dados.length * 3) / 4 / 1024);
+      if (kb > LIMITE_MB * 1024) {
+        limparComprovante();
+        return erro(`O arquivo passou de ${LIMITE_MB} MB. Tente um print da tela do comprovante.`);
+      }
+      if (!TIPOS_OK.includes(tipo)) tipo = ehPdf ? "application/pdf" : "image/jpeg";
+      state.comprovante = { nome, tipo, dados, kb };
+      $("upload-nome").textContent = file.name;
+      $("upload-info").textContent = `${kb < 1024 ? kb + " KB" : (kb / 1024).toFixed(1) + " MB"} · pronto para enviar`;
+      $("upload-thumb").hidden = tipo === "application/pdf";
+      if (tipo !== "application/pdf") $("upload-thumb").src = dataUrl;
+      $("upload").hidden = true;
+      $("upload-ok").hidden = false;
+      erro("");
+    } catch {
+      limparComprovante();
+      erro("Não foi possível ler o arquivo. Tente outro.");
+    }
+  });
+  $("upload-rm").addEventListener("click", limparComprovante);
 
   $("copiar-pix").addEventListener("click", async () => {
     try {
@@ -308,7 +411,7 @@
     if (DEMO) {
       const lista = lerDemo();
       const id = lista.length + 1;
-      lista.push({ ...pedido, id, data: new Date().toISOString() });
+      lista.push({ ...pedido, comprovante: { nome: pedido.comprovante.nome }, id, data: new Date().toISOString() });
       try { localStorage.setItem("pedidos-demo", JSON.stringify(lista)); } catch {}
       await new Promise((r) => setTimeout(r, 500));
       return { ok: true, id, totalUnidades: somaDemo(lista) };
@@ -341,6 +444,12 @@
 
   // ---------- início ----------
   document.title = C.TITULO;
+  if (C.PIX_CHAVE) {
+    $("pix-key").textContent = C.PIX_CHAVE;
+    $("pix-key").classList.remove("pending");
+    $("copiar-pix").hidden = false;
+  }
+  $("pix-nome").textContent = C.PIX_NOME ? `Favorecido: ${C.PIX_NOME}` : "";
   $("demo-banner").hidden = !DEMO;
   renderTipos();
   renderTamanhos();

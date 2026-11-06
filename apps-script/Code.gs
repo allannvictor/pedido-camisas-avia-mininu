@@ -11,6 +11,9 @@ const MINIMO_DESCONTO = 30; // total do grupo a partir do qual vale o desconto
 const PRECO_NOME = 10; // adicional por camisa com nome
 const NOME_MAX = 15; // máximo de letras no nome da camisa
 const AVISAR_POR_EMAIL = true; // manda um e-mail para você a cada pedido
+const PASTA_COMPROVANTES = "Comprovantes - Novo Manto Avia Mininu"; // pasta criada no seu Google Drive
+const COMPROVANTE_MAX_MB = 6;
+const COMPROVANTE_TIPOS = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic", "image/heif": "heif", "application/pdf": "pdf" };
 
 // Tipo de camisa → tamanhos (mesma lista do config.js)
 const TAMANHOS = {
@@ -25,9 +28,9 @@ const TIPOS = Object.keys(TAMANHOS);
 const ABA_PEDIDOS = "Pedidos";
 const ABA_RESUMO = "Resumo";
 const ABA_FORNECEDOR = "Fornecedor";
-const CABECALHO = ["Data", "Pedido nº", "Nome", "Telefone", "Tipo", "Tamanho", "Qtd", "Nome na camisa", "Valor", "Pago?", "Observação"];
-// colunas (1 = A): E=Tipo F=Tamanho G=Qtd H=Nome na camisa I=Valor J=Pago?
-const COL = { tipo: 5, tamanho: 6, qtd: 7, nomeCamisa: 8, valor: 9, pago: 10 };
+const CABECALHO = ["Data", "Pedido nº", "Nome", "Telefone", "Tipo", "Tamanho", "Qtd", "Nome na camisa", "Valor", "Pago?", "Comprovante", "Observação"];
+// colunas (1 = A): E=Tipo F=Tamanho G=Qtd H=Nome na camisa I=Valor J=Pago? K=Comprovante
+const COL = { tipo: 5, tamanho: 6, qtd: 7, nomeCamisa: 8, valor: 9, pago: 10, comprovante: 11 };
 
 /** Menu "Pedido" dentro da planilha. */
 function onOpen() {
@@ -61,6 +64,31 @@ function configurarPlanilha() {
   r.getRange("A1:A5").setFontWeight("bold");
   r.getRange("A7").setValue("Para o relatório completo do fornecedor: menu Pedido → Gerar relatório do fornecedor").setFontStyle("italic");
   r.autoResizeColumns(1, 2);
+
+  pastaComprovantes_(); // cria a pasta no Drive (e pede a permissão do Drive)
+}
+
+function pastaComprovantes_() {
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty("pastaComprovantes");
+  if (id) {
+    try { return DriveApp.getFolderById(id); } catch (e) { /* pasta apagada: cria outra */ }
+  }
+  const pasta = DriveApp.createFolder(PASTA_COMPROVANTES);
+  props.setProperty("pastaComprovantes", pasta.getId());
+  return pasta;
+}
+
+/** Valida e salva o comprovante no Drive. Retorna o arquivo ou lança erro com mensagem amigável. */
+function salvarComprovante_(c, nome) {
+  if (!c || !c.dados) throw new Error("Anexe o comprovante do Pix.");
+  const ext = COMPROVANTE_TIPOS[c.tipo];
+  if (!ext) throw new Error("Comprovante deve ser foto ou PDF.");
+  const bytes = Utilities.base64Decode(c.dados);
+  if (bytes.length > COMPROVANTE_MAX_MB * 1024 * 1024) throw new Error("Comprovante muito grande.");
+  const limpo = nome.replace(/[\\/:*?"<>|]/g, "").slice(0, 60);
+  const blob = Utilities.newBlob(bytes, c.tipo, `${limpo}.${ext}`);
+  return pastaComprovantes_().createFile(blob);
 }
 
 /** Cria/atualiza a aba "Fornecedor" com tudo que precisa ser produzido. */
@@ -158,6 +186,14 @@ function doPost(e) {
       .map((i) => ({ ...i, nomeCamisa: String(i.nomeCamisa || "").trim().toUpperCase().slice(0, NOME_MAX).replace(/^[=+\-@]/, "") }));
     if (!itens.length) return json({ ok: false, erro: "Pedido sem itens válidos." });
 
+    // salva o comprovante antes de travar a planilha (upload pode demorar)
+    let arquivo;
+    try {
+      arquivo = salvarComprovante_(dados.comprovante, nome);
+    } catch (err) {
+      return json({ ok: false, erro: err.message || "Não foi possível salvar o comprovante." });
+    }
+
     const lock = LockService.getScriptLock();
     lock.waitLock(20000);
     try {
@@ -165,6 +201,8 @@ function doPost(e) {
       const props = PropertiesService.getScriptProperties();
       const id = Number(props.getProperty("ultimoId") || 0) + 1;
       props.setProperty("ultimoId", String(id));
+      arquivo.setName(`Pedido ${id} - ${arquivo.getName()}`);
+      const link = `=HYPERLINK("${arquivo.getUrl()}","ver comprovante")`;
 
       const agora = new Date();
       const inicio = sh.getLastRow() + 1;
@@ -172,7 +210,7 @@ function doPost(e) {
         const r = inicio + k;
         return [
           agora, id, "'" + nome, "'" + telefone, i.tipo, i.tamanho, i.qtd, i.nomeCamisa,
-          `=G${r}*(${ABA_RESUMO}!$B$2+IF(H${r}<>"",${PRECO_NOME},0))`, false, "",
+          `=G${r}*(${ABA_RESUMO}!$B$2+IF(H${r}<>"",${PRECO_NOME},0))`, false, link, "",
         ];
       });
       sh.getRange(inicio, 1, linhas.length, CABECALHO.length).setValues(linhas);
@@ -180,7 +218,7 @@ function doPost(e) {
       SpreadsheetApp.flush();
 
       const total = totalUnidades_();
-      if (AVISAR_POR_EMAIL) avisar_(id, nome, telefone, itens, total);
+      if (AVISAR_POR_EMAIL) avisar_(id, nome, telefone, itens, total, arquivo.getUrl());
       return json({ ok: true, id, totalUnidades: total });
     } finally {
       lock.releaseLock();
@@ -197,7 +235,7 @@ function totalUnidades_() {
   return sh.getRange(2, COL.qtd, n, 1).getValues().reduce((s, [q]) => s + (Number(q) || 0), 0);
 }
 
-function avisar_(id, nome, telefone, itens, total) {
+function avisar_(id, nome, telefone, itens, total, urlComprovante) {
   try {
     const linhas = itens
       .map((i) => `• ${i.qtd}x ${i.tipo} ${i.tamanho}${i.nomeCamisa ? ` - nome: ${i.nomeCamisa}` : ""}`)
@@ -205,7 +243,7 @@ function avisar_(id, nome, telefone, itens, total) {
     MailApp.sendEmail(
       Session.getEffectiveUser().getEmail(),
       `Novo pedido nº ${id} — ${nome}`,
-      `${nome} (${telefone})\n\n${linhas}\n\nTotal do grupo agora: ${total} camisa(s).\n${SpreadsheetApp.getActive().getUrl()}`
+      `${nome} (${telefone})\n\n${linhas}\n\nComprovante: ${urlComprovante}\n\nTotal do grupo agora: ${total} camisa(s).\n${SpreadsheetApp.getActive().getUrl()}`
     );
   } catch (e) { /* e-mail é opcional */ }
 }
