@@ -66,7 +66,7 @@ Fotos grandes são reduzidas automaticamente antes do envio.
 - A partir de 30 camisas: **R$ 45,00** para todo mundo.
 - Nome na camisa: **+ R$ 10,00** por camisa (até 15 letras).
 - O site mostra o contador "Camisas solicitadas" e as duas faixas de preço. Se a meta for batida depois que alguém
-  já pagou, a diferença é acertada com a organização (o site avisa isso).
+  já pagou, a organização devolve R$ 5,00 por camisa (o site avisa isso desde a página inicial).
 
 Para mudar o prazo ou os preços, altere **os dois** arquivos: `config.js` e `Code.gs`.
 

@@ -108,7 +108,7 @@
       ? "Adicione as camisas para ver o valor."
       : atingido
         ? ""
-        : `Se o grupo chegar a ${C.MINIMO_DESCONTO} camisas, o preço cai para ${brl(C.PRECO_DESCONTO)} e a diferença é acertada com a organização.`;
+        : `Se o grupo chegar a ${C.MINIMO_DESCONTO} camisas, o preço cai para ${brl(C.PRECO_DESCONTO)} e a organização devolve a diferença de ${brl(C.PRECO_NORMAL - C.PRECO_DESCONTO)} por camisa.`;
     renderProgresso();
   }
 
@@ -135,6 +135,12 @@
       msg = `A partir de ${C.MINIMO_DESCONTO} camisas no total do grupo, o valor cai para <b>${brl(C.PRECO_DESCONTO)}</b> para todo mundo.`;
     }
     $("progress-msg").innerHTML = msg;
+
+    const dif = brl(C.PRECO_NORMAL - C.PRECO_DESCONTO);
+    $("aviso-devolucao").hidden = total >= C.MINIMO_DESCONTO;
+    $("aviso-devolucao").innerHTML =
+      `<b>Pode pedir sem medo:</b> se você pagar ${brl(C.PRECO_NORMAL)} e o grupo chegar a ${C.MINIMO_DESCONTO} camisas, ` +
+      `a organização <b>devolve ${dif} por camisa</b> e faz o acerto depois que os pedidos fecharem.`;
   }
 
   const estaAberto = () => Date.now() < prazo.getTime();
@@ -280,7 +286,7 @@
     $("sucesso-aviso").textContent =
       preco === C.PRECO_DESCONTO
         ? ""
-        : `Se o grupo chegar a ${C.MINIMO_DESCONTO} camisas, o preço cai para ${brl(C.PRECO_DESCONTO)} e a diferença é acertada com a organização.`;
+        : `Se o grupo chegar a ${C.MINIMO_DESCONTO} camisas, o preço cai para ${brl(C.PRECO_DESCONTO)} e a organização devolve a diferença de ${brl(C.PRECO_NORMAL - C.PRECO_DESCONTO)} por camisa.`;
 
     if (C.WHATSAPP_ORGANIZADOR) {
       const linhas = pedido.itens

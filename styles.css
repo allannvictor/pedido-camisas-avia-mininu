@@ -140,6 +140,11 @@ main { margin-top: -40px; }
 @media (prefers-color-scheme: dark) { .tier.active::after { color: var(--yellow); } }
 .progress-msg { margin: 0; font-size: 14px; color: var(--muted); }
 .progress-msg b { color: var(--ink); }
+.aviso-devolucao {
+  margin: 12px 0 0; padding: 10px 12px;
+  background: rgba(255, 194, 61, .16); border: 1px solid rgba(255, 194, 61, .6);
+  border-radius: 12px; font-size: 14px; color: var(--ink);
+}
 
 /* ---------- Tipo ---------- */
 .tipo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
