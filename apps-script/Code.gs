@@ -4,7 +4,7 @@
  */
 
 // ====== CONFIGURAÇÃO ======
-const PRAZO = new Date("2026-11-14T12:00:00-03:00"); // 14/11 ao meio-dia (mesmo prazo do config.js)
+const PRAZO = new Date("2026-11-15T16:00:00-03:00"); // 15/11 às 16h (mesmo prazo do config.js)
 const PRECO_NORMAL = 50;
 const PRECO_DESCONTO = 45;
 const MINIMO_DESCONTO = 30; // total do grupo a partir do qual vale o desconto
