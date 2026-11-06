@@ -4,7 +4,7 @@
  */
 
 // ====== CONFIGURAÇÃO ======
-const PRAZO = new Date("2026-11-25T23:59:59-03:00"); // mesmo prazo do config.js
+const PRAZO = new Date("2026-11-14T12:00:00-03:00"); // 14/11 ao meio-dia (mesmo prazo do config.js)
 const PRECO_NORMAL = 50;
 const PRECO_DESCONTO = 45;
 const MINIMO_DESCONTO = 30; // total do grupo a partir do qual vale o desconto
@@ -12,20 +12,22 @@ const PRECO_NOME = 10; // adicional por camisa com nome
 const NOME_MAX = 15; // máximo de letras no nome da camisa
 const AVISAR_POR_EMAIL = true; // manda um e-mail para você a cada pedido
 
-const TIPOS = ["Com mangas", "Regata"];
+// Tipo de camisa → tamanhos (mesma lista do config.js)
 const TAMANHOS = {
   "Tradicional": ["P", "M", "G", "GG", "XGG"],
   "Baby Look": ["P", "M", "G", "GG", "XGG"],
+  "Regata": ["P", "M", "G", "GG", "XGG"],
   "Infantil": ["2 anos", "4 anos", "6 anos", "8 anos", "10 anos", "12 anos (PP)"],
 };
+const TIPOS = Object.keys(TAMANHOS);
 // ==========================
 
 const ABA_PEDIDOS = "Pedidos";
 const ABA_RESUMO = "Resumo";
 const ABA_FORNECEDOR = "Fornecedor";
-const CABECALHO = ["Data", "Pedido nº", "Nome", "Telefone", "Tipo", "Modelo", "Tamanho", "Qtd", "Nome na camisa", "Valor", "Pago?", "Observação"];
-// colunas (1 = A)
-const COL = { tipo: 5, modelo: 6, tamanho: 7, qtd: 8, nomeCamisa: 9, valor: 10, pago: 11 };
+const CABECALHO = ["Data", "Pedido nº", "Nome", "Telefone", "Tipo", "Tamanho", "Qtd", "Nome na camisa", "Valor", "Pago?", "Observação"];
+// colunas (1 = A): E=Tipo F=Tamanho G=Qtd H=Nome na camisa I=Valor J=Pago?
+const COL = { tipo: 5, tamanho: 6, qtd: 7, nomeCamisa: 8, valor: 9, pago: 10 };
 
 /** Menu "Pedido" dentro da planilha. */
 function onOpen() {
@@ -42,17 +44,17 @@ function configurarPlanilha() {
   p.getRange(1, 1, 1, CABECALHO.length).setValues([CABECALHO])
     .setFontWeight("bold").setBackground("#0f1b3d").setFontColor("#ffffff");
   p.setFrozenRows(1);
-  p.getRange("H:H").setNumberFormat("0");
-  p.getRange("J:J").setNumberFormat("R$ #,##0.00");
+  p.getRange("G:G").setNumberFormat("0");
+  p.getRange("I:I").setNumberFormat("R$ #,##0.00");
 
   const r = ss.getSheetByName(ABA_RESUMO) || ss.insertSheet(ABA_RESUMO);
   r.clear();
   r.getRange("A1:B5").setValues([
-    ["Total de camisas", "=SUM(Pedidos!H2:H)"],
+    ["Total de camisas", "=SUM(Pedidos!G2:G)"],
     ["Preço por camisa", `=IF(B1>=${MINIMO_DESCONTO},${PRECO_DESCONTO},${PRECO_NORMAL})`],
-    ["Camisas com nome", '=SUMIF(Pedidos!I2:I,"<>",Pedidos!H2:H)'],
-    ["Valor total", "=SUM(Pedidos!J2:J)"],
-    ["Valor já pago", "=SUMIF(Pedidos!K2:K,TRUE,Pedidos!J2:J)"],
+    ["Camisas com nome", '=SUMIF(Pedidos!H2:H,"<>",Pedidos!G2:G)'],
+    ["Valor total", "=SUM(Pedidos!I2:I)"],
+    ["Valor já pago", "=SUMIF(Pedidos!J2:J,TRUE,Pedidos!I2:I)"],
   ]);
   r.getRange("B2").setNumberFormat("R$ #,##0.00");
   r.getRange("B4:B5").setNumberFormat("R$ #,##0.00");
@@ -79,19 +81,17 @@ function gerarRelatorioFornecedor() {
   push([`Total: ${total} camisa(s), sendo ${totalNome} com nome`], "negrito");
   push([""]);
 
-  // 1) Quantidades por tipo / modelo / tamanho
+  // 1) Quantidades por tipo / tamanho
   push(["1. QUANTIDADES"], "secao");
   TIPOS.forEach((tipo) => {
     const doTipo = linhas.filter((l) => l.tipo === tipo);
     if (!doTipo.length) return;
     push([tipo.toUpperCase(), "", "", `${somar_(doTipo)} un.`], "tipo");
-    push(["Modelo", "Tamanho", "Sem nome", "Com nome"], "cabecalho");
-    Object.keys(TAMANHOS).forEach((modelo) => {
-      TAMANHOS[modelo].forEach((tam) => {
-        const its = doTipo.filter((l) => l.modelo === modelo && l.tamanho === tam);
-        if (!its.length) return;
-        push([modelo, tam, somar_(its.filter((l) => !l.nomeCamisa)), somar_(its.filter((l) => l.nomeCamisa))]);
-      });
+    push(["Tamanho", "Sem nome", "Com nome", "Total"], "cabecalho");
+    TAMANHOS[tipo].forEach((tam) => {
+      const its = doTipo.filter((l) => l.tamanho === tam);
+      if (!its.length) return;
+      push([tam, somar_(its.filter((l) => !l.nomeCamisa)), somar_(its.filter((l) => l.nomeCamisa)), somar_(its)]);
     });
     push([""]);
   });
@@ -101,10 +101,10 @@ function gerarRelatorioFornecedor() {
   const comNome = linhas.filter((l) => l.nomeCamisa);
   if (!comNome.length) push(["Nenhuma camisa com nome."]);
   else {
-    push(["Tipo", "Modelo", "Tamanho", "Nome"], "cabecalho");
+    push(["Tipo", "Tamanho", "Nome", ""], "cabecalho");
     comNome
       .sort((a, b) => ordem_(a) - ordem_(b) || a.nomeCamisa.localeCompare(b.nomeCamisa))
-      .forEach((l) => { for (let k = 0; k < l.qtd; k++) push([l.tipo, l.modelo, l.tamanho, l.nomeCamisa]); });
+      .forEach((l) => { for (let k = 0; k < l.qtd; k++) push([l.tipo, l.tamanho, l.nomeCamisa]); });
   }
 
   sh.getRange(1, 1, out.length, 4).setValues(out);
@@ -127,15 +127,14 @@ function lerItens_() {
   if (n < 1) return [];
   return sh.getRange(2, 1, n, CABECALHO.length).getValues()
     .map((r) => ({
-      tipo: r[COL.tipo - 1], modelo: r[COL.modelo - 1], tamanho: String(r[COL.tamanho - 1]).replace(/^'/, ""),
+      tipo: r[COL.tipo - 1], tamanho: String(r[COL.tamanho - 1]).replace(/^'/, ""),
       qtd: Number(r[COL.qtd - 1]) || 0, nomeCamisa: String(r[COL.nomeCamisa - 1] || "").trim(),
     }))
     .filter((l) => l.qtd > 0);
 }
 const somar_ = (its) => its.reduce((s, l) => s + l.qtd, 0);
 function ordem_(l) {
-  const ms = Object.keys(TAMANHOS);
-  return TIPOS.indexOf(l.tipo) * 1000 + ms.indexOf(l.modelo) * 100 + (TAMANHOS[l.modelo] || []).indexOf(l.tamanho);
+  return TIPOS.indexOf(l.tipo) * 100 + (TAMANHOS[l.tipo] || []).indexOf(l.tamanho);
 }
 
 function doGet() {
@@ -154,7 +153,7 @@ function doPost(e) {
     if (telefone.replace(/\D/g, "").length < 10) return json({ ok: false, erro: "Telefone inválido." });
 
     const itens = (dados.itens || [])
-      .filter((i) => TIPOS.includes(i.tipo) && TAMANHOS[i.modelo] && TAMANHOS[i.modelo].includes(i.tamanho) &&
+      .filter((i) => TAMANHOS[i.tipo] && TAMANHOS[i.tipo].includes(i.tamanho) &&
         Number.isInteger(i.qtd) && i.qtd >= 1 && i.qtd <= 20)
       .map((i) => ({ ...i, nomeCamisa: String(i.nomeCamisa || "").trim().toUpperCase().slice(0, NOME_MAX).replace(/^[=+\-@]/, "") }));
     if (!itens.length) return json({ ok: false, erro: "Pedido sem itens válidos." });
@@ -172,8 +171,8 @@ function doPost(e) {
       const linhas = itens.map((i, k) => {
         const r = inicio + k;
         return [
-          agora, id, "'" + nome, "'" + telefone, i.tipo, i.modelo, i.tamanho, i.qtd, i.nomeCamisa,
-          `=H${r}*(${ABA_RESUMO}!$B$2+IF(I${r}<>"",${PRECO_NOME},0))`, false, "",
+          agora, id, "'" + nome, "'" + telefone, i.tipo, i.tamanho, i.qtd, i.nomeCamisa,
+          `=G${r}*(${ABA_RESUMO}!$B$2+IF(H${r}<>"",${PRECO_NOME},0))`, false, "",
         ];
       });
       sh.getRange(inicio, 1, linhas.length, CABECALHO.length).setValues(linhas);
@@ -201,7 +200,7 @@ function totalUnidades_() {
 function avisar_(id, nome, telefone, itens, total) {
   try {
     const linhas = itens
-      .map((i) => `• ${i.qtd}x ${i.modelo} ${i.tamanho} (${i.tipo})${i.nomeCamisa ? ` - nome: ${i.nomeCamisa}` : ""}`)
+      .map((i) => `• ${i.qtd}x ${i.tipo} ${i.tamanho}${i.nomeCamisa ? ` - nome: ${i.nomeCamisa}` : ""}`)
       .join("\n");
     MailApp.sendEmail(
       Session.getEffectiveUser().getEmail(),

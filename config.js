@@ -10,9 +10,9 @@ window.CONFIG = {
   API_URL: "",
 
   // Prazo para pedidos (horário de Brasília)
-  PRAZO: "2026-11-25T23:59:59-03:00",
+  PRAZO: "2026-11-14T12:00:00-03:00", // 14/11 ao meio-dia
 
-  // Preços (valem para todos os tipos e modelos)
+  // Preços (valem para todos os tipos)
   PRECO_NORMAL: 50,
   PRECO_DESCONTO: 45,
   // Adicional por camisa com nome personalizado
@@ -29,15 +29,13 @@ window.CONFIG = {
   WHATSAPP_ORGANIZADOR: "5579999286884",
 
   TIPOS: [
-    { id: "Com mangas", descricao: "Camisa normal", icone: "manga" },
-    { id: "Regata", descricao: "Sem mangas", icone: "regata" },
-  ],
-
-  MODELOS: [
-    { id: "Tradicional", tamanhos: ["P", "M", "G", "GG", "XGG"] },
-    { id: "Baby Look", tamanhos: ["P", "M", "G", "GG", "XGG"] },
+    { id: "Tradicional", descricao: "Com mangas", icone: "tradicional", tamanhos: ["P", "M", "G", "GG", "XGG"] },
+    { id: "Baby Look", descricao: "Corte feminino", icone: "babylook", tamanhos: ["P", "M", "G", "GG", "XGG"] },
+    { id: "Regata", descricao: "Sem mangas", icone: "regata", tamanhos: ["P", "M", "G", "GG", "XGG"] },
     {
       id: "Infantil",
+      descricao: "Para crianças",
+      icone: "infantil",
       tamanhos: ["2 anos", "4 anos", "6 anos", "8 anos", "10 anos", "12 anos (PP)"],
     },
   ],

@@ -143,6 +143,7 @@ main { margin-top: -40px; }
 
 /* ---------- Tipo ---------- */
 .tipo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.encerrado .card:not(:last-child) { opacity: .55; pointer-events: none; }
 .tipo {
   border: 2px solid var(--line);
   background: var(--card);
@@ -175,7 +176,7 @@ main { margin-top: -40px; }
 .nome-camisa input { text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
 .nome-camisa small { display: block; margin-top: 6px; font-size: 13px; }
 .stepper.locked { opacity: .5; }
-.cart .tag { display: inline-block; margin-top: 3px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px; letter-spacing: .03em; }
+.cart .tag { display: inline-block; margin-top: 4px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px; letter-spacing: .03em; }
 .cart .price { font-weight: 700; font-size: 14px; white-space: nowrap; }
 .segmented button[aria-checked="true"] { background: var(--card); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); color: var(--accent); }
 

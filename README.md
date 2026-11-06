@@ -46,7 +46,7 @@ Esse link é o que vocês mandam no grupo do WhatsApp.
 - **Aba Resumo:** total de camisas, preço em vigor (50 ou 45), camisas com nome,
   valor total e valor já pago.
 - **Relatório do fornecedor:** na planilha, menu **Pedido → Gerar relatório do fornecedor**.
-  Cria a aba **Fornecedor** com as quantidades por tipo, modelo e tamanho (separando sem nome e
+  Cria a aba **Fornecedor** com as quantidades por tipo (Tradicional, Baby Look, Regata, Infantil) e tamanho (separando sem nome e
   com nome) e a lista de todos os nomes que vão nas camisas. Para mandar como PDF:
   **Arquivo → Fazer download → PDF**. Pode gerar quantas vezes quiser; ele sempre se atualiza.
   (Se o menu não aparecer, recarregue a planilha.)
