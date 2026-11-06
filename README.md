@@ -43,14 +43,20 @@ Esse link é o que vocês mandam no grupo do WhatsApp.
 
 - **Aba Pedidos:** uma linha por item, com o nº do pedido, nome e telefone.
   Marque a caixinha **Pago?** quando receber o Pix.
-- **Aba Resumo:** total de camisas, preço em vigor (50 ou 45), valor total e já pago,
-  e a tabela **tipo × modelo × tamanho** pronta para mandar ao fornecedor.
+- **Aba Resumo:** total de camisas, preço em vigor (50 ou 45), camisas com nome,
+  valor total e valor já pago.
+- **Relatório do fornecedor:** na planilha, menu **Pedido → Gerar relatório do fornecedor**.
+  Cria a aba **Fornecedor** com as quantidades por tipo, modelo e tamanho (separando sem nome e
+  com nome) e a lista de todos os nomes que vão nas camisas. Para mandar como PDF:
+  **Arquivo → Fazer download → PDF**. Pode gerar quantas vezes quiser; ele sempre se atualiza.
+  (Se o menu não aparecer, recarregue a planilha.)
 - A cada pedido você recebe um **e-mail** (pode desligar em `AVISAR_POR_EMAIL`).
 
 ## Regras de preço
 
 - Até 29 camisas no total do grupo: **R$ 50,00** cada.
 - A partir de 30 camisas: **R$ 45,00** para todo mundo.
+- Nome na camisa: **+ R$ 10,00** por camisa (até 15 letras).
 - O site mostra o contador "Camisas solicitadas" e as duas faixas de preço. Se a meta for batida depois que alguém
   já pagou, a diferença é acertada com a organização (o site avisa isso).
 

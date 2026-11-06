@@ -18,6 +18,7 @@
     modelo: C.MODELOS[0].id,
     tamanho: null,
     qtd: 1,
+    comNome: false,
     cart: [],
     totalGrupo: 0,
   };
@@ -26,6 +27,14 @@
   const brl = (v) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const precoPara = (total) => (total >= C.MINIMO_DESCONTO ? C.PRECO_DESCONTO : C.PRECO_NORMAL);
   const qtdCarrinho = () => state.cart.reduce((s, i) => s + i.qtd, 0);
+  const valorItem = (i, preco) => i.qtd * (preco + (i.nomeCamisa ? C.PRECO_NOME : 0));
+  const valorTotal = (itens, preco) => itens.reduce((s, i) => s + valorItem(i, preco), 0);
+  const itemHtml = (i, preco, remover) => `
+        <span class="qty">${i.qtd}x</span>
+        <span class="desc"><strong>${esc(i.modelo)} · ${esc(i.tamanho)}</strong><span>${esc(i.tipo)}</span>${
+          i.nomeCamisa ? `<br><span class="tag">NOME: ${esc(i.nomeCamisa)}</span>` : ""}</span>
+        <span class="price">${brl(valorItem(i, preco))}</span>${
+          remover ? '<button type="button" class="rm" aria-label="Remover">×</button>' : ""}`;
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -77,12 +86,10 @@
   function renderCart() {
     const ul = $("cart");
     ul.innerHTML = "";
+    const precoAtual = precoPara(state.totalGrupo + qtdCarrinho());
     state.cart.forEach((item, idx) => {
       const li = document.createElement("li");
-      li.innerHTML = `
-        <span class="qty">${item.qtd}x</span>
-        <span class="desc"><strong>${esc(item.modelo)} · ${esc(item.tamanho)}</strong><span>${esc(item.tipo)}</span></span>
-        <button type="button" class="rm" aria-label="Remover">×</button>`;
+      li.innerHTML = itemHtml(item, precoAtual, true);
       li.querySelector(".rm").addEventListener("click", () => {
         state.cart.splice(idx, 1);
         renderCart();
@@ -94,7 +101,7 @@
     $("cart-empty").hidden = qtd > 0;
     $("cart-total").hidden = qtd === 0;
     $("total-qtd").textContent = qtd;
-    $("total-valor").textContent = brl(qtd * preco);
+    $("total-valor").textContent = brl(valorTotal(state.cart, preco));
     renderProgresso();
   }
 
@@ -137,7 +144,20 @@
 
   // ---------- ações ----------
   $("qtd-menos").addEventListener("click", () => { state.qtd = Math.max(1, state.qtd - 1); $("qtd").textContent = state.qtd; });
-  $("qtd-mais").addEventListener("click", () => { state.qtd = Math.min(20, state.qtd + 1); $("qtd").textContent = state.qtd; });
+  $("qtd-mais").addEventListener("click", () => {
+    if (state.comNome) return toast("Com nome, adicione uma camisa de cada vez.");
+    state.qtd = Math.min(20, state.qtd + 1); $("qtd").textContent = state.qtd;
+  });
+
+  function setComNome(v) {
+    state.comNome = v;
+    [...$("personalizar").children].forEach((b) => b.setAttribute("aria-checked", String((b.dataset.v === "sim") === v)));
+    $("nome-camisa-wrap").hidden = !v;
+    $("qtd-mais").closest(".stepper").classList.toggle("locked", v);
+    if (v) { state.qtd = 1; $("qtd").textContent = 1; $("nome-camisa").focus(); }
+  }
+  [...$("personalizar").children].forEach((b) => b.addEventListener("click", () => setComNome(b.dataset.v === "sim")));
+  $("preco-nome-label").textContent = `+ ${brl(C.PRECO_NOME).replace(",00", "")}`;
 
   $("add").addEventListener("click", () => {
     if (!state.tamanho) {
@@ -145,12 +165,21 @@
       $("tamanhos").scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    const existente = state.cart.find(
-      (i) => i.tipo === state.tipo && i.modelo === state.modelo && i.tamanho === state.tamanho
+    const nomeCamisa = state.comNome ? $("nome-camisa").value.trim().toUpperCase() : "";
+    if (state.comNome && !nomeCamisa) {
+      $("add-hint").textContent = "Digite o nome que vai na camisa (ou escolha \"Sem nome\").";
+      $("nome-camisa").focus();
+      return;
+    }
+    const existente = !nomeCamisa && state.cart.find(
+      (i) => i.tipo === state.tipo && i.modelo === state.modelo && i.tamanho === state.tamanho && !i.nomeCamisa
     );
     if (existente) existente.qtd += state.qtd;
-    else state.cart.push({ tipo: state.tipo, modelo: state.modelo, tamanho: state.tamanho, qtd: state.qtd });
-    toast(`${state.qtd}x ${state.modelo} ${state.tamanho} adicionada(s)`);
+    else state.cart.push({ tipo: state.tipo, modelo: state.modelo, tamanho: state.tamanho, qtd: state.qtd, nomeCamisa });
+    toast(`${state.qtd}x ${state.modelo} ${state.tamanho}${nomeCamisa ? ` "${nomeCamisa}"` : ""} adicionada(s)`);
+    $("add-hint").textContent = "";
+    $("nome-camisa").value = "";
+    setComNome(false);
     state.qtd = 1;
     $("qtd").textContent = 1;
     state.tamanho = null;
@@ -210,11 +239,11 @@
     const qtd = pedido.itens.reduce((s, i) => s + i.qtd, 0);
     const preco = precoPara(res.totalUnidades);
     $("sucesso-id").textContent = `${pedido.nome.split(" ")[0]}, seu pedido nº ${res.id} foi registrado.`;
-    $("sucesso-itens").innerHTML = pedido.itens
-      .map((i) => `<li><span class="qty">${i.qtd}x</span><span class="desc"><strong>${esc(i.modelo)} · ${esc(i.tamanho)}</strong><span>${esc(i.tipo)}</span></span></li>`)
-      .join("");
-    $("sucesso-qtd").textContent = `${qtd} camisa(s) × ${brl(preco)}`;
-    $("sucesso-valor").textContent = brl(qtd * preco);
+    const total = valorTotal(pedido.itens, preco);
+    const comNome = pedido.itens.filter((i) => i.nomeCamisa).reduce((s, i) => s + i.qtd, 0);
+    $("sucesso-itens").innerHTML = pedido.itens.map((i) => `<li>${itemHtml(i, preco, false)}</li>`).join("");
+    $("sucesso-qtd").textContent = `${qtd} camisa(s) × ${brl(preco)}${comNome ? ` + ${comNome} nome(s)` : ""}`;
+    $("sucesso-valor").textContent = brl(total);
 
     if (C.PIX_CHAVE) {
       $("pix-key").textContent = C.PIX_CHAVE;
@@ -228,8 +257,10 @@
         : `Se o grupo chegar a ${C.MINIMO_DESCONTO} camisas, o preço cai para ${brl(C.PRECO_DESCONTO)} e a diferença é acertada com a organização.`;
 
     if (C.WHATSAPP_ORGANIZADOR) {
-      const linhas = pedido.itens.map((i) => `• ${i.qtd}x ${i.modelo} ${i.tamanho} (${i.tipo})`).join("\n");
-      const texto = `Olá! Fiz o pedido nº ${res.id} do ${C.TITULO}.\nNome: ${pedido.nome}\n${linhas}\nTotal: ${brl(qtd * preco)}\nSegue o comprovante do Pix:`;
+      const linhas = pedido.itens
+        .map((i) => `• ${i.qtd}x ${i.modelo} ${i.tamanho} (${i.tipo})${i.nomeCamisa ? ` - nome: ${i.nomeCamisa}` : ""}`)
+        .join("\n");
+      const texto = `Olá! Fiz o pedido nº ${res.id} do ${C.TITULO}.\nNome: ${pedido.nome}\n${linhas}\nTotal: ${brl(total)}\nSegue o comprovante do Pix:`;
       $("whats").href = `https://wa.me/${C.WHATSAPP_ORGANIZADOR}?text=${encodeURIComponent(texto)}`;
       $("whats").hidden = false;
     }
