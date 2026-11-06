@@ -10,7 +10,7 @@ window.CONFIG = {
   API_URL: "",
 
   // Prazo para pedidos (horário de Brasília)
-  PRAZO: "2026-11-14T12:00:00-03:00", // 14/11 ao meio-dia
+  PRAZO: "2026-11-15T16:00:00-03:00", // 15/11 às 16h
 
   // Preços (valem para todos os tipos)
   PRECO_NORMAL: 50,
