@@ -22,7 +22,7 @@ window.CONFIG = {
 
   // Pagamento via Pix (deixe vazio até ter a chave)
   PIX_CHAVE: "c49b6398-01d4-4419-835b-cbba98f98521",
-  PIX_NOME: "", // nome de quem recebe, ex: "Fulano de Tal"
+  PIX_NOME: "Jeffter Cleber Rios Ferreira", // nome de quem recebe
 
   // WhatsApp de quem organiza, só números com DDI e DDD (ex: "5583999999999").
   // Se preenchido, aparece um botão para a pessoa mandar o comprovante.
