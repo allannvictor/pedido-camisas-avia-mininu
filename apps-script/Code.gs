@@ -32,12 +32,22 @@ const CABECALHO = ["Data", "Pedido nº", "Nome", "Telefone", "Tipo", "Tamanho", 
 // colunas (1 = A): E=Tipo F=Tamanho G=Qtd H=Nome na camisa I=Valor J=Pago? K=Comprovante
 const COL = { tipo: 5, tamanho: 6, qtd: 7, nomeCamisa: 8, valor: 9, pago: 10, comprovante: 11 };
 
-/** Menu "Pedido" dentro da planilha. */
+/** Menu "Pedido" dentro da planilha (aparece na barra de menus, depois de "Ajuda"). */
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Pedido")
     .addItem("Gerar relatório do fornecedor", "gerarRelatorioFornecedor")
     .addToUi();
+}
+
+// Fórmulas são gravadas com setFormula(s), que sempre usa a sintaxe em inglês
+// (vírgula entre argumentos). Assim funcionam em planilhas em português, onde o
+// separador digitado é ";" — gravar o texto com setValues dava "Erro de análise".
+function formulaValor_(r) {
+  return `=G${r}*(${ABA_RESUMO}!$B$2+IF(H${r}<>"",${PRECO_NOME},0))`;
+}
+function formulaComprovante_(url) {
+  return `=HYPERLINK("${url}","ver comprovante")`;
 }
 
 /** Rode esta função UMA vez pelo editor para criar as abas. */
@@ -52,12 +62,15 @@ function configurarPlanilha() {
 
   const r = ss.getSheetByName(ABA_RESUMO) || ss.insertSheet(ABA_RESUMO);
   r.clear();
-  r.getRange("A1:B5").setValues([
-    ["Total de camisas", "=SUM(Pedidos!G2:G)"],
-    ["Preço por camisa", `=IF(B1>=${MINIMO_DESCONTO},${PRECO_DESCONTO},${PRECO_NORMAL})`],
-    ["Camisas com nome", '=SUMIF(Pedidos!H2:H,"<>",Pedidos!G2:G)'],
-    ["Valor total", "=SUM(Pedidos!I2:I)"],
-    ["Valor já pago", "=SUMIF(Pedidos!J2:J,TRUE,Pedidos!I2:I)"],
+  r.getRange("A1:A5").setValues([
+    ["Total de camisas"], ["Preço por camisa"], ["Camisas com nome"], ["Valor total"], ["Valor já pago"],
+  ]);
+  r.getRange("B1:B5").setFormulas([
+    ["=SUM(Pedidos!G2:G)"],
+    [`=IF(B1>=${MINIMO_DESCONTO},${PRECO_DESCONTO},${PRECO_NORMAL})`],
+    ['=SUMIF(Pedidos!H2:H,"<>",Pedidos!G2:G)'],
+    ["=SUM(Pedidos!I2:I)"],
+    ["=SUMIF(Pedidos!J2:J,TRUE,Pedidos!I2:I)"],
   ]);
   r.getRange("B2").setNumberFormat("R$ #,##0.00");
   r.getRange("B4:B5").setNumberFormat("R$ #,##0.00");
@@ -65,7 +78,23 @@ function configurarPlanilha() {
   r.getRange("A7").setValue("Para o relatório completo do fornecedor: menu Pedido → Gerar relatório do fornecedor").setFontStyle("italic");
   r.autoResizeColumns(1, 2);
 
+  corrigirFormulasPedidos_(p);
   pastaComprovantes_(); // cria a pasta no Drive (e pede a permissão do Drive)
+  try { onOpen(); } catch (e) { /* rodando pelo editor: o menu aparece ao recarregar a planilha */ }
+}
+
+/** Regrava as fórmulas de Valor e Comprovante das linhas já existentes (conserta "#ERROR!"). */
+function corrigirFormulasPedidos_(sh) {
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return;
+  const valores = [];
+  for (let k = 0; k < n; k++) valores.push([formulaValor_(k + 2)]);
+  sh.getRange(2, COL.valor, n, 1).setFormulas(valores);
+  const comp = sh.getRange(2, COL.comprovante, n, 1).getFormulas().map(([f]) => {
+    const m = String(f).match(/HYPERLINK\(\s*"([^"]+)"/i);
+    return [m ? formulaComprovante_(m[1]) : f];
+  });
+  sh.getRange(2, COL.comprovante, n, 1).setFormulas(comp);
 }
 
 function pastaComprovantes_() {
@@ -202,18 +231,18 @@ function doPost(e) {
       const id = Number(props.getProperty("ultimoId") || 0) + 1;
       props.setProperty("ultimoId", String(id));
       arquivo.setName(`Pedido ${id} - ${arquivo.getName()}`);
-      const link = `=HYPERLINK("${arquivo.getUrl()}","ver comprovante")`;
 
       const agora = new Date();
       const inicio = sh.getLastRow() + 1;
-      const linhas = itens.map((i, k) => {
-        const r = inicio + k;
+      const linhas = itens.map((i) => {
         return [
-          agora, id, "'" + nome, "'" + telefone, i.tipo, i.tamanho, i.qtd, i.nomeCamisa,
-          `=G${r}*(${ABA_RESUMO}!$B$2+IF(H${r}<>"",${PRECO_NOME},0))`, false, link, "",
+          agora, id, "'" + nome, "'" + telefone, i.tipo, i.tamanho, i.qtd, i.nomeCamisa, "", false, "", "",
         ];
       });
       sh.getRange(inicio, 1, linhas.length, CABECALHO.length).setValues(linhas);
+      sh.getRange(inicio, COL.valor, linhas.length, 1).setFormulas(linhas.map((_, k) => [formulaValor_(inicio + k)]));
+      sh.getRange(inicio, COL.comprovante, linhas.length, 1)
+        .setFormulas(linhas.map(() => [formulaComprovante_(arquivo.getUrl())]));
       sh.getRange(inicio, COL.pago, linhas.length, 1).insertCheckboxes();
       SpreadsheetApp.flush();
 
