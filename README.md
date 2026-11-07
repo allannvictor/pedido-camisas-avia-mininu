@@ -51,7 +51,9 @@ Esse link é o que vocês mandam no grupo do WhatsApp.
   Cria a aba **Fornecedor** com as quantidades por tipo (Tradicional, Baby Look, Regata, Infantil) e tamanho (separando sem nome e
   com nome) e a lista de todos os nomes que vão nas camisas. Para mandar como PDF:
   **Arquivo → Fazer download → PDF**. Pode gerar quantas vezes quiser; ele sempre se atualiza.
-  (Se o menu não aparecer, recarregue a planilha.)
+  O menu **Pedido** fica na barra de menus da planilha, depois de **Ajuda**. Se não aparecer,
+  recarregue a página da planilha (F5). Alternativa: no Apps Script, escolha a função
+  `gerarRelatorioFornecedor` e clique em **Executar**.
 - A cada pedido você recebe um **e-mail** (pode desligar em `AVISAR_POR_EMAIL`).
 
 ## Pagamento
@@ -74,3 +76,11 @@ Para mudar o prazo ou os preços, altere **os dois** arquivos: `config.js` e `Co
 
 Depois do prazo, o site e a planilha param de aceitar pedidos sozinhos.
 Para tirar o site do ar: **Settings → Pages → Unpublish** (ou arquive o repositório).
+
+## Problemas comuns
+
+- **`#ERROR!` nas colunas Valor/Comprovante ou na aba Resumo:** cole o `Code.gs` mais recente,
+  rode `configurarPlanilha` de novo (ele conserta as linhas existentes) e publique uma nova versão
+  em **Implantar → Gerenciar implantações → editar (lápis) → Versão: Nova versão → Implantar**.
+- **O site mostra erro ao enviar:** confira se a implantação está com acesso **Qualquer pessoa**
+  e se a URL em `config.js` termina em `/exec`.
