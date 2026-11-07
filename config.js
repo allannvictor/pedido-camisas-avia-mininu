@@ -7,7 +7,7 @@ window.CONFIG = {
   // Cole aqui a URL do Apps Script (veja o README).
   // Enquanto estiver vazio, o site funciona em "modo demonstração"
   // (os pedidos ficam salvos só no seu navegador).
-  API_URL: "",
+  API_URL: "https://script.google.com/macros/s/AKfycbxq4bscfp0C-eUINuuT-VhRJXqXFYUlau-iU69KCVQW1on7wPP1pHpa452D-KN0VMcMdg/exec",
 
   // Prazo para pedidos (horário de Brasília)
   PRAZO: "2026-11-12T23:59:59-03:00", // fim do dia 12/11 (meia-noite)
