@@ -44,13 +44,20 @@ Esse link é o que vocês mandam no grupo do WhatsApp.
 
 - **Aba Pedidos:** uma linha por item, com o nº do pedido, nome e telefone.
   Cada pedido traz o link **"ver comprovante"** (o arquivo fica na pasta de comprovantes do
-  seu Drive, visível só para você). Confira e marque a caixinha **Pago?**.
+  seu Drive, visível só para você). Como o comprovante é obrigatório, **Pago?** já entra
+  marcado; se algum comprovante não conferir, desmarque.
 - **Aba Resumo:** total de camisas, preço em vigor (50 ou 45), camisas com nome,
   valor total e valor já pago.
 - **Relatório do fornecedor:** na planilha, menu **Pedido → Gerar relatório do fornecedor**.
-  Cria a aba **Fornecedor** com as quantidades por tipo (Tradicional, Baby Look, Regata, Infantil) e tamanho (separando sem nome e
-  com nome) e a lista de todos os nomes que vão nas camisas. Para mandar como PDF:
-  **Arquivo → Fazer download → PDF**. Pode gerar quantas vezes quiser; ele sempre se atualiza.
+  Cria a aba **Fornecedor** com:
+  1. um resumo por tipo (sem nome / com nome / total);
+  2. a **lista para produção**, uma linha por tipo + tamanho, por exemplo
+     `TRADICIONAL | SEM NOME | M | 5` e, para cada camisa com nome,
+     `TRADICIONAL | COM NOME | G | 1 | ALLANN`, com o total de cada tipo.
+
+  Se algum pedido estiver com **Pago?** desmarcado, o relatório avisa no topo. Para mandar
+  como PDF: **Arquivo → Fazer download → PDF**. Pode gerar quantas vezes quiser; ele sempre
+  se atualiza.
   O menu **Pedido** fica na barra de menus da planilha, depois de **Ajuda**. Se não aparecer,
   recarregue a página da planilha (F5). Alternativa: no Apps Script, escolha a função
   `gerarRelatorioFornecedor` e clique em **Executar**.
