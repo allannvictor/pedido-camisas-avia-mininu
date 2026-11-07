@@ -84,6 +84,13 @@ Para mudar o prazo ou os preços, altere **os dois** arquivos: `config.js` e `Co
 Depois do prazo, o site e a planilha param de aceitar pedidos sozinhos.
 Para tirar o site do ar: **Settings → Pages → Unpublish** (ou arquive o repositório).
 
+## Apagar testes / recomeçar do zero
+
+Na planilha, menu **Pedido → Limpar todos os pedidos (zerar)**. Ele pede confirmação e então:
+apaga as linhas da aba Pedidos (mantém o cabeçalho), manda os comprovantes da pasta do Drive para
+a lixeira (recuperáveis por 30 dias), volta a numeração para o pedido nº 1 e remove a aba
+Fornecedor. **Use só antes de abrir os pedidos de verdade.**
+
 ## Problemas comuns
 
 - **`#ERROR!` nas colunas Valor/Comprovante ou na aba Resumo:** cole o `Code.gs` mais recente,

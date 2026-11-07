@@ -37,6 +37,8 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Pedido")
     .addItem("Gerar relatório do fornecedor", "gerarRelatorioFornecedor")
+    .addSeparator()
+    .addItem("Limpar todos os pedidos (zerar)", "limparPedidos")
     .addToUi();
 }
 
@@ -121,6 +123,48 @@ function mapaComprovantes_() {
     if (m && !mapa[m[1]]) mapa[m[1]] = f.getUrl();
   }
   return mapa;
+}
+
+/**
+ * Zera o pedido para recomeçar (ex.: depois de testes): apaga as linhas da aba
+ * Pedidos (mantém o cabeçalho), manda os comprovantes para a lixeira do Drive
+ * (recuperáveis por 30 dias), volta a numeração para 1 e remove a aba Fornecedor.
+ * Pede confirmação antes.
+ */
+function limparPedidos() {
+  const ui = SpreadsheetApp.getUi();
+  const resp = ui.alert(
+    "Limpar todos os pedidos?",
+    "Isso apaga TODAS as linhas da aba Pedidos, manda os comprovantes para a lixeira do Drive " +
+      "e volta a numeração para o pedido nº 1.\n\nUse só para apagar testes. Continuar?",
+    ui.ButtonSet.YES_NO
+  );
+  if (resp !== ui.Button.YES) return;
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const sh = ss.getSheetByName(ABA_PEDIDOS);
+    const n = sh.getLastRow() - 1;
+    if (n > 0) {
+      sh.getRange(2, 1, n, sh.getMaxColumns()).clearContent().clearDataValidations().setBackground(null);
+    }
+
+    let arquivos = 0;
+    const it = pastaComprovantes_().getFiles();
+    while (it.hasNext()) { it.next().setTrashed(true); arquivos++; }
+
+    PropertiesService.getScriptProperties().deleteProperty("ultimoId");
+
+    const forn = ss.getSheetByName(ABA_FORNECEDOR);
+    if (forn) ss.deleteSheet(forn);
+
+    SpreadsheetApp.flush();
+    ui.alert(`Pronto! ${n > 0 ? n : 0} linha(s) apagada(s) e ${arquivos} comprovante(s) enviados para a lixeira. O próximo pedido será o nº 1.`);
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function pastaComprovantes_() {
