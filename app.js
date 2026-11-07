@@ -148,7 +148,7 @@
   function renderPrazo() {
     const tz = { timeZone: "America/Sao_Paulo" };
     const dia = prazo.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", ...tz });
-    const hora = prazo.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", ...tz }).replace(":00", "h");
+    const hora = prazo.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", ...tz }).replace(":", "h").replace(/h00$/, "h");
     const quando = `${dia} às ${hora}`;
     const ms = prazo - Date.now();
     const aberto = ms > 0;
