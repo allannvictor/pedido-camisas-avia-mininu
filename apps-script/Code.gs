@@ -146,60 +146,83 @@ function salvarComprovante_(c, nome) {
   return pastaComprovantes_().createFile(blob);
 }
 
-/** Cria/atualiza a aba "Fornecedor" com tudo que precisa ser produzido. */
+/**
+ * Cria/atualiza a aba "Fornecedor": uma linha por tipo + sem/com nome + tamanho,
+ * e uma linha por camisa com nome (com o nome ao lado). Pronta para virar PDF.
+ */
 function gerarRelatorioFornecedor() {
   const ss = SpreadsheetApp.getActive();
   const linhas = lerItens_();
   const sh = ss.getSheetByName(ABA_FORNECEDOR) || ss.insertSheet(ABA_FORNECEDOR);
   sh.clear();
 
+  const NC = 5; // colunas do relatório
   const out = [];
-  const estilos = []; // [linha, tipo]
-  const push = (row, estilo) => { out.push(row.concat(Array(4 - row.length).fill(""))); if (estilo) estilos.push([out.length, estilo]); };
+  const estilos = []; // [linha, estilo]
+  const push = (row, estilo) => {
+    out.push(row.concat(Array(NC - row.length).fill("")));
+    if (estilo) estilos.push([out.length, estilo]);
+  };
 
-  const total = linhas.reduce((s, l) => s + l.qtd, 0);
-  const totalNome = linhas.filter((l) => l.nomeCamisa).reduce((s, l) => s + l.qtd, 0);
+  const total = somar_(linhas);
+  const totalNome = somar_(linhas.filter((l) => l.nomeCamisa));
+  const naoPagas = somar_(linhas.filter((l) => !l.pago));
   push(["NOVO MANTO AVIA MININU — PEDIDO AO FORNECEDOR"], "titulo");
   push([`Gerado em ${Utilities.formatDate(new Date(), "America/Sao_Paulo", "dd/MM/yyyy HH:mm")}`]);
-  push([`Total: ${total} camisa(s), sendo ${totalNome} com nome`], "negrito");
+  push([`Total: ${total} camisa(s) — ${total - totalNome} sem nome e ${totalNome} com nome`], "negrito");
+  if (naoPagas) push([`Atenção: ${naoPagas} camisa(s) são de pedidos com "Pago?" desmarcado e estão incluídas.`], "alerta");
   push([""]);
 
-  // 1) Quantidades por tipo / tamanho
-  push(["1. QUANTIDADES"], "secao");
+  // 1) Resumo por tipo
+  push(["1. RESUMO POR TIPO"], "secao");
+  push(["Tipo", "Sem nome", "Com nome", "Total"], "cabecalho");
   TIPOS.forEach((tipo) => {
     const doTipo = linhas.filter((l) => l.tipo === tipo);
     if (!doTipo.length) return;
-    push([tipo.toUpperCase(), "", "", `${somar_(doTipo)} un.`], "tipo");
-    push(["Tamanho", "Sem nome", "Com nome", "Total"], "cabecalho");
+    push([tipo.toUpperCase(), somar_(doTipo.filter((l) => !l.nomeCamisa)), somar_(doTipo.filter((l) => l.nomeCamisa)), somar_(doTipo)]);
+  });
+  push(["TOTAL", total - totalNome, totalNome, total], "negrito");
+  push([""]);
+
+  // 2) Lista para produção
+  push(["2. LISTA PARA PRODUÇÃO"], "secao");
+  push(["Tipo", "Nome?", "Tamanho", "Qtd", "Nome na camisa"], "cabecalho");
+  TIPOS.forEach((tipo) => {
+    const doTipo = linhas.filter((l) => l.tipo === tipo);
+    if (!doTipo.length) return;
+    const T = tipo.toUpperCase();
+
+    // sem nome: uma linha por tamanho
     TAMANHOS[tipo].forEach((tam) => {
-      const its = doTipo.filter((l) => l.tamanho === tam);
-      if (!its.length) return;
-      push([tam, somar_(its.filter((l) => !l.nomeCamisa)), somar_(its.filter((l) => l.nomeCamisa)), somar_(its)]);
+      const q = somar_(doTipo.filter((l) => !l.nomeCamisa && l.tamanho === tam));
+      if (q) push([T, "SEM NOME", tam, q, ""]);
     });
+
+    // com nome: uma linha por nome
+    doTipo
+      .filter((l) => l.nomeCamisa)
+      .sort((a, b) => ordem_(a) - ordem_(b) || a.nomeCamisa.localeCompare(b.nomeCamisa))
+      .forEach((l) => push([T, "COM NOME", l.tamanho, l.qtd, l.nomeCamisa], "comNome"));
+
+    push([`Total ${tipo}`, "", "", somar_(doTipo), ""], "subtotal");
     push([""]);
   });
+  push(["TOTAL GERAL", "", "", total, ""], "tipo");
 
-  // 2) Lista de nomes
-  push(["2. NOMES NAS CAMISAS"], "secao");
-  const comNome = linhas.filter((l) => l.nomeCamisa);
-  if (!comNome.length) push(["Nenhuma camisa com nome."]);
-  else {
-    push(["Tipo", "Tamanho", "Nome", ""], "cabecalho");
-    comNome
-      .sort((a, b) => ordem_(a) - ordem_(b) || a.nomeCamisa.localeCompare(b.nomeCamisa))
-      .forEach((l) => { for (let k = 0; k < l.qtd; k++) push([l.tipo, l.tamanho, l.nomeCamisa]); });
-  }
-
-  sh.getRange(1, 1, out.length, 4).setValues(out);
+  sh.getRange(1, 1, out.length, NC).setValues(out);
   estilos.forEach(([row, e]) => {
-    const rg = sh.getRange(row, 1, 1, 4);
+    const rg = sh.getRange(row, 1, 1, NC);
     if (e === "titulo") rg.setFontWeight("bold").setFontSize(14);
     if (e === "negrito") rg.setFontWeight("bold");
+    if (e === "alerta") rg.setFontWeight("bold").setFontColor("#c62f3b");
     if (e === "secao") rg.setFontWeight("bold").setBackground("#0f1b3d").setFontColor("#ffffff");
-    if (e === "tipo") rg.setFontWeight("bold").setBackground("#ffc23d");
     if (e === "cabecalho") rg.setFontWeight("bold").setBackground("#e6ecff");
+    if (e === "comNome") rg.setBackground("#fff4d6");
+    if (e === "subtotal") rg.setFontWeight("bold").setBackground("#f1f3f8");
+    if (e === "tipo") rg.setFontWeight("bold").setBackground("#ffc23d");
   });
-  sh.setColumnWidths(1, 4, 150);
+  sh.setColumnWidths(1, NC, 130);
+  sh.setColumnWidth(5, 180);
   ss.setActiveSheet(sh);
   try { SpreadsheetApp.getUi().alert("Relatório gerado na aba \"Fornecedor\". Para PDF: Arquivo → Fazer download → PDF."); } catch (e) {}
 }
@@ -212,6 +235,7 @@ function lerItens_() {
     .map((r) => ({
       tipo: r[COL.tipo - 1], tamanho: String(r[COL.tamanho - 1]).replace(/^'/, ""),
       qtd: Number(r[COL.qtd - 1]) || 0, nomeCamisa: String(r[COL.nomeCamisa - 1] || "").trim(),
+      pago: r[COL.pago - 1] === true,
     }))
     .filter((l) => l.qtd > 0);
 }
@@ -262,14 +286,14 @@ function doPost(e) {
       const inicio = sh.getLastRow() + 1;
       const linhas = itens.map((i) => {
         return [
-          agora, id, "'" + nome, "'" + telefone, i.tipo, i.tamanho, i.qtd, i.nomeCamisa, "", false, "", "",
+          agora, id, "'" + nome, "'" + telefone, i.tipo, i.tamanho, i.qtd, i.nomeCamisa, "", true, "", "",
         ];
       });
       sh.getRange(inicio, 1, linhas.length, CABECALHO.length).setValues(linhas);
       sh.getRange(inicio, COL.valor, linhas.length, 1).setFormulas(linhas.map((_, k) => [formulaValor_(inicio + k)]));
       sh.getRange(inicio, COL.comprovante, linhas.length, 1)
         .setRichTextValues(linhas.map(() => [linkComprovante_(arquivo.getUrl())]));
-      sh.getRange(inicio, COL.pago, linhas.length, 1).insertCheckboxes();
+      sh.getRange(inicio, COL.pago, linhas.length, 1).insertCheckboxes().check(); // comprovante é obrigatório: já entra como pago
       SpreadsheetApp.flush();
 
       const total = totalUnidades_();
