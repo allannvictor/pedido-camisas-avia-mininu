@@ -40,14 +40,17 @@ function onOpen() {
     .addToUi();
 }
 
-// Fórmulas são gravadas com setFormula(s), que sempre usa a sintaxe em inglês
-// (vírgula entre argumentos). Assim funcionam em planilhas em português, onde o
-// separador digitado é ";" — gravar o texto com setValues dava "Erro de análise".
+// IMPORTANTE: as fórmulas não usam separador de argumentos ("," ou ";").
+// Em planilhas em português o separador é ";" e em inglês é ",", e fórmulas com
+// o separador errado dão "Erro de análise de fórmula" (#ERROR!). Por isso:
+//   - SE(...) virou aritmética com comparações: (H2<>"") vale 1 ou 0;
+//   - SOMASE virou SUMPRODUCT de um único argumento;
+//   - o link do comprovante é um texto com link, sem fórmula HYPERLINK.
 function formulaValor_(r) {
-  return `=G${r}*(${ABA_RESUMO}!$B$2+IF(H${r}<>"",${PRECO_NOME},0))`;
+  return `=G${r}*(${ABA_RESUMO}!$B$2+${PRECO_NOME}*(H${r}<>""))`;
 }
-function formulaComprovante_(url) {
-  return `=HYPERLINK("${url}","ver comprovante")`;
+function linkComprovante_(url) {
+  return SpreadsheetApp.newRichTextValue().setText("ver comprovante").setLinkUrl(url).build();
 }
 
 /** Rode esta função UMA vez pelo editor para criar as abas. */
@@ -67,10 +70,10 @@ function configurarPlanilha() {
   ]);
   r.getRange("B1:B5").setFormulas([
     ["=SUM(Pedidos!G2:G)"],
-    [`=IF(B1>=${MINIMO_DESCONTO},${PRECO_DESCONTO},${PRECO_NORMAL})`],
-    ['=SUMIF(Pedidos!H2:H,"<>",Pedidos!G2:G)'],
+    [`=${PRECO_NORMAL}-${PRECO_NORMAL - PRECO_DESCONTO}*(B1>=${MINIMO_DESCONTO})`],
+    ['=SUMPRODUCT((Pedidos!H2:H<>"")*Pedidos!G2:G)'],
     ["=SUM(Pedidos!I2:I)"],
-    ["=SUMIF(Pedidos!J2:J,TRUE,Pedidos!I2:I)"],
+    ["=SUMPRODUCT(Pedidos!J2:J*Pedidos!I2:I)"],
   ]);
   r.getRange("B2").setNumberFormat("R$ #,##0.00");
   r.getRange("B4:B5").setNumberFormat("R$ #,##0.00");
@@ -83,18 +86,41 @@ function configurarPlanilha() {
   try { onOpen(); } catch (e) { /* rodando pelo editor: o menu aparece ao recarregar a planilha */ }
 }
 
-/** Regrava as fórmulas de Valor e Comprovante das linhas já existentes (conserta "#ERROR!"). */
+/**
+ * Conserta as linhas já gravadas: regrava a fórmula de Valor e, onde a coluna
+ * Comprovante estiver vazia ou com erro, refaz o link procurando o arquivo
+ * "Pedido N - ..." na pasta de comprovantes do Drive.
+ */
 function corrigirFormulasPedidos_(sh) {
   const n = sh.getLastRow() - 1;
   if (n < 1) return;
   const valores = [];
   for (let k = 0; k < n; k++) valores.push([formulaValor_(k + 2)]);
   sh.getRange(2, COL.valor, n, 1).setFormulas(valores);
-  const comp = sh.getRange(2, COL.comprovante, n, 1).getFormulas().map(([f]) => {
-    const m = String(f).match(/HYPERLINK\(\s*"([^"]+)"/i);
-    return [m ? formulaComprovante_(m[1]) : f];
-  });
-  sh.getRange(2, COL.comprovante, n, 1).setFormulas(comp);
+
+  const ids = sh.getRange(2, 2, n, 1).getValues();
+  const comp = sh.getRange(2, COL.comprovante, n, 1);
+  const links = comp.getRichTextValues();
+  const shown = comp.getDisplayValues();
+  let arquivos = null; // id do pedido → url (carregado só se precisar)
+  for (let k = 0; k < n; k++) {
+    const temLink = links[k][0] && links[k][0].getLinkUrl();
+    if (temLink && shown[k][0] !== "#ERROR!") continue;
+    if (!arquivos) arquivos = mapaComprovantes_();
+    const url = arquivos[String(ids[k][0])];
+    if (url) sh.getRange(k + 2, COL.comprovante).setRichTextValue(linkComprovante_(url));
+  }
+}
+
+function mapaComprovantes_() {
+  const mapa = {};
+  const it = pastaComprovantes_().getFiles();
+  while (it.hasNext()) {
+    const f = it.next();
+    const m = f.getName().match(/^Pedido (\d+) - /);
+    if (m && !mapa[m[1]]) mapa[m[1]] = f.getUrl();
+  }
+  return mapa;
 }
 
 function pastaComprovantes_() {
@@ -242,7 +268,7 @@ function doPost(e) {
       sh.getRange(inicio, 1, linhas.length, CABECALHO.length).setValues(linhas);
       sh.getRange(inicio, COL.valor, linhas.length, 1).setFormulas(linhas.map((_, k) => [formulaValor_(inicio + k)]));
       sh.getRange(inicio, COL.comprovante, linhas.length, 1)
-        .setFormulas(linhas.map(() => [formulaComprovante_(arquivo.getUrl())]));
+        .setRichTextValues(linhas.map(() => [linkComprovante_(arquivo.getUrl())]));
       sh.getRange(inicio, COL.pago, linhas.length, 1).insertCheckboxes();
       SpreadsheetApp.flush();
 

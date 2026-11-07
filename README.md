@@ -80,7 +80,8 @@ Para tirar o site do ar: **Settings → Pages → Unpublish** (ou arquive o repo
 ## Problemas comuns
 
 - **`#ERROR!` nas colunas Valor/Comprovante ou na aba Resumo:** cole o `Code.gs` mais recente,
-  rode `configurarPlanilha` de novo (ele conserta as linhas existentes) e publique uma nova versão
+  rode `configurarPlanilha` de novo (ele conserta as linhas existentes e refaz os links dos
+  comprovantes a partir da pasta do Drive) e publique uma nova versão
   em **Implantar → Gerenciar implantações → editar (lápis) → Versão: Nova versão → Implantar**.
 - **O site mostra erro ao enviar:** confira se a implantação está com acesso **Qualquer pessoa**
   e se a URL em `config.js` termina em `/exec`.
