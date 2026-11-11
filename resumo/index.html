@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Resumo do pedido</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#0f1b3d" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23ffc23d' d='M22 8 12 12 4 24l8 6 4-4v30h32V26l4 4 8-6-8-12-10-4c-2 4-6 6-10 6s-8-2-10-6z'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    .hero { padding-bottom: 56px; }
+    .hero-sub a { color: var(--yellow); }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat { background: var(--chip); border-radius: 14px; padding: 12px 14px; }
+    .stat .label { display: block; font-size: 12px; }
+    .stat b { font-family: Archivo, sans-serif; font-size: 24px; line-height: 1.2; }
+    .stat.big { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; }
+    .stat.big b { font-size: 40px; color: var(--accent); }
+    .alerta { margin: 12px 0 0; color: var(--danger); font-weight: 600; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+    td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.total td { font-weight: 700; border-bottom: 0; }
+    .tipo-bloco + .tipo-bloco { margin-top: 22px; }
+    .tipo-bloco h3 { font-family: Archivo, sans-serif; font-size: 16px; margin: 0 0 6px; display: flex; justify-content: space-between; }
+    .tipo-bloco h3 span { color: var(--muted); font-weight: 600; font-size: 14px; }
+    .nome { font-weight: 700; letter-spacing: .03em; }
+    tr.com-nome td { background: rgba(255, 194, 61, .12); }
+    .rodape { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .rodape .btn { width: auto; margin: 0; padding: 10px 16px; }
+    .muted { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <span class="badge" id="status">Carregando…</span>
+      <h1>Resumo<br /><span>do pedido</span></h1>
+      <p class="hero-sub" id="atualizado">Buscando os dados da planilha…</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card" id="erro" hidden>
+      <h2>Não foi possível carregar</h2>
+      <p class="muted" id="erro-texto"></p>
+    </section>
+
+    <section class="card" id="numeros" hidden>
+      <div class="stats">
+        <div class="stat big"><span class="label">Total de camisas</span><b id="r-total">0</b></div>
+        <div class="stat"><span class="label">Pedidos</span><b id="r-pedidos">0</b></div>
+        <div class="stat"><span class="label">Preço por camisa</span><b id="r-preco">–</b></div>
+        <div class="stat"><span class="label">Camisas com nome</span><b id="r-nome">0</b></div>
+        <div class="stat"><span class="label">Falta para o desconto</span><b id="r-falta">–</b></div>
+        <div class="stat"><span class="label">Valor total</span><b id="r-valor">–</b></div>
+        <div class="stat"><span class="label">Valor já pago</span><b id="r-pago">–</b></div>
+      </div>
+      <p class="alerta" id="r-alerta" hidden></p>
+    </section>
+
+    <section class="card" id="por-tipo" hidden>
+      <h2>Por tipo</h2>
+      <table>
+        <thead><tr><th>Tipo</th><th class="n">Sem nome</th><th class="n">Com nome</th><th class="n">Total</th></tr></thead>
+        <tbody id="tb-tipos"></tbody>
+      </table>
+    </section>
+
+    <section class="card" id="producao" hidden>
+      <h2>Lista para produção</h2>
+      <div id="lista"></div>
+    </section>
+
+    <div class="rodape" id="rodape" hidden>
+      <span class="muted small">Atualiza sozinho a cada minuto.</span>
+      <button type="button" class="btn btn-secondary" id="atualizar">Atualizar agora</button>
+    </div>
+  </main>
+
+  <footer class="wrap footer">Avia Mininu · pedido coletivo</footer>
+
+  <script src="../config.js"></script>
+  <script>
+    (() => {
+      const C = window.CONFIG;
+      const $ = (id) => document.getElementById(id);
+      const brl = (v) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+      function mostrarErro(msg) {
+        $("status").textContent = "Erro";
+        $("atualizado").textContent = "";
+        $("erro-texto").textContent = msg;
+        $("erro").hidden = false;
+      }
+
+      function render(d) {
+        $("status").textContent = d.aberto ? "Pedidos abertos" : "Pedidos encerrados";
+        $("atualizado").textContent = `Atualizado em ${d.atualizadoEm}`;
+        $("erro").hidden = true;
+
+        $("r-total").textContent = d.totalUnidades;
+        $("r-pedidos").textContent = d.pedidos;
+        $("r-preco").textContent = brl(d.preco);
+        $("r-nome").textContent = d.comNome;
+        const falta = C.MINIMO_DESCONTO - d.totalUnidades;
+        $("r-falta").textContent = falta > 0 ? `${falta} camisa(s)` : "Atingido ✓";
+        $("r-valor").textContent = brl(d.valorTotal);
+        $("r-pago").textContent = brl(d.valorPago);
+        $("r-alerta").hidden = !d.naoPagas;
+        $("r-alerta").textContent = `Atenção: ${d.naoPagas} camisa(s) de pedidos com "Pago?" desmarcado na planilha.`;
+
+        const semNome = d.tipos.reduce((s, t) => s + t.semNome, 0);
+        $("tb-tipos").innerHTML =
+          d.tipos.map((t) => `<tr><td>${esc(t.tipo)}</td><td class="n">${t.semNome}</td><td class="n">${t.comNome}</td><td class="n">${t.total}</td></tr>`).join("") +
+          `<tr class="total"><td>Total</td><td class="n">${semNome}</td><td class="n">${d.comNome}</td><td class="n">${d.totalUnidades}</td></tr>`;
+
+        $("lista").innerHTML = d.tipos.length
+          ? d.tipos.map((t) => `
+            <div class="tipo-bloco">
+              <h3>${esc(t.tipo)} <span>${t.total} camisa(s)</span></h3>
+              <table>
+                <thead><tr><th>Tamanho</th><th>Nome</th><th class="n">Qtd</th></tr></thead>
+                <tbody>
+                  ${t.tamanhos.map((x) => `<tr><td>${esc(x.tamanho)}</td><td class="muted">sem nome</td><td class="n">${x.qtd}</td></tr>`).join("")}
+                  ${t.nomes.map((x) => `<tr class="com-nome"><td>${esc(x.tamanho)}</td><td class="nome">${esc(x.nome)}</td><td class="n">${x.qtd}</td></tr>`).join("")}
+                </tbody>
+              </table>
+            </div>`).join("")
+          : `<p class="empty">Nenhum pedido ainda.</p>`;
+
+        ["numeros", "por-tipo", "producao", "rodape"].forEach((id) => ($(id).hidden = false));
+      }
+
+      async function carregar() {
+        if (!C.API_URL) return mostrarErro("O site está em modo demonstração (API_URL vazio no config.js).");
+        $("atualizar").disabled = true;
+        try {
+          const r = await fetch(`${C.API_URL}?acao=resumo`);
+          const d = await r.json();
+          if (!d.ok || !d.tipos) throw new Error("versão antiga");
+          render(d);
+        } catch (e) {
+          mostrarErro("Verifique a conexão. Se persistir, confira se o Code.gs mais recente foi publicado como nova versão no Apps Script.");
+        } finally {
+          $("atualizar").disabled = false;
+        }
+      }
+
+      $("atualizar").addEventListener("click", carregar);
+      carregar();
+      setInterval(() => { if (!document.hidden) carregar(); }, 60000);
+    })();
+  </script>
+</body>
+</html>

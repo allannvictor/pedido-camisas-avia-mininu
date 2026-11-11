@@ -5,6 +5,7 @@ Os pedidos caem direto numa **planilha do Google**, já com um resumo por tamanh
 
 - `index.html`, `styles.css`, `app.js`: o site
 - `config.js`: **tudo o que você precisa editar** (prazo, preços, chave Pix, WhatsApp)
+- `resumo/index.html`: página com o resumo do pedido (para a organização)
 - `apps-script/Code.gs`: o código que liga o site à planilha
 
 Enquanto `API_URL` estiver vazio no `config.js`, o site roda em **modo demonstração**
@@ -61,6 +62,12 @@ Esse link é o que vocês mandam no grupo do WhatsApp.
   O menu **Pedido** fica na barra de menus da planilha, depois de **Ajuda**. Se não aparecer,
   recarregue a página da planilha (F5). Alternativa: no Apps Script, escolha a função
   `gerarRelatorioFornecedor` e clique em **Executar**.
+- **Resumo no navegador (sem abrir a planilha):**
+  `https://allannvictor.github.io/pedido-camisas-avia-mininu/resumo/`
+  mostra total de camisas, preço em vigor, valor total e já pago, a contagem por tipo e a
+  lista para produção (tamanhos e nomes nas camisas). Atualiza sozinha a cada minuto.
+  Não mostra nome nem telefone de quem pediu, mas qualquer pessoa com o link vê os números.
+  Precisa do `Code.gs` mais recente publicado como **nova versão** (veja o passo 1).
 - A cada pedido você recebe um **e-mail** (pode desligar em `AVISAR_POR_EMAIL`).
 
 ## Pagamento

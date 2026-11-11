@@ -277,7 +277,7 @@ function lerItens_() {
   if (n < 1) return [];
   return sh.getRange(2, 1, n, CABECALHO.length).getValues()
     .map((r) => ({
-      tipo: r[COL.tipo - 1], tamanho: String(r[COL.tamanho - 1]).replace(/^'/, ""),
+      id: r[1], tipo: r[COL.tipo - 1], tamanho: String(r[COL.tamanho - 1]).replace(/^'/, ""),
       qtd: Number(r[COL.qtd - 1]) || 0, nomeCamisa: String(r[COL.nomeCamisa - 1] || "").trim(),
       pago: r[COL.pago - 1] === true,
     }))
@@ -288,8 +288,49 @@ function ordem_(l) {
   return TIPOS.indexOf(l.tipo) * 100 + (TAMANHOS[l.tipo] || []).indexOf(l.tamanho);
 }
 
-function doGet() {
+function doGet(e) {
+  if (e && e.parameter && e.parameter.acao === "resumo") return json(resumo_());
   return json({ ok: true, totalUnidades: totalUnidades_(), aberto: new Date() < PRAZO });
+}
+
+/**
+ * Dados da página /resumo do site: os números da aba Resumo + a lista para o
+ * fornecedor. Não inclui nome nem telefone de quem pediu, só o nome que vai na camisa.
+ */
+function resumo_() {
+  const linhas = lerItens_();
+  const total = somar_(linhas);
+  const preco = total >= MINIMO_DESCONTO ? PRECO_DESCONTO : PRECO_NORMAL;
+  const valor = (its) => its.reduce((s, l) => s + l.qtd * (preco + (l.nomeCamisa ? PRECO_NOME : 0)), 0);
+  const tipos = TIPOS.map((tipo) => {
+    const doTipo = linhas.filter((l) => l.tipo === tipo);
+    return {
+      tipo,
+      semNome: somar_(doTipo.filter((l) => !l.nomeCamisa)),
+      comNome: somar_(doTipo.filter((l) => l.nomeCamisa)),
+      total: somar_(doTipo),
+      tamanhos: TAMANHOS[tipo]
+        .map((tam) => ({ tamanho: tam, qtd: somar_(doTipo.filter((l) => !l.nomeCamisa && l.tamanho === tam)) }))
+        .filter((t) => t.qtd),
+      nomes: doTipo
+        .filter((l) => l.nomeCamisa)
+        .sort((a, b) => ordem_(a) - ordem_(b) || a.nomeCamisa.localeCompare(b.nomeCamisa))
+        .map((l) => ({ tamanho: l.tamanho, qtd: l.qtd, nome: l.nomeCamisa })),
+    };
+  }).filter((t) => t.total);
+  return {
+    ok: true,
+    atualizadoEm: Utilities.formatDate(new Date(), "America/Sao_Paulo", "dd/MM/yyyy HH:mm"),
+    aberto: new Date() < PRAZO,
+    pedidos: new Set(linhas.map((l) => l.id)).size,
+    totalUnidades: total,
+    preco,
+    comNome: somar_(linhas.filter((l) => l.nomeCamisa)),
+    valorTotal: valor(linhas),
+    valorPago: valor(linhas.filter((l) => l.pago)),
+    naoPagas: somar_(linhas.filter((l) => !l.pago)),
+    tipos,
+  };
 }
 
 function doPost(e) {
