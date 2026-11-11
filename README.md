@@ -76,6 +76,22 @@ O comprovante do Pix é **obrigatório**: a pessoa vê o valor a pagar e a chave
 enviar, paga, anexa a foto/print/PDF do comprovante (até 5 MB) e só então consegue enviar.
 Fotos grandes são reduzidas automaticamente antes do envio.
 
+## Valor pago e devoluções
+
+A aba **Pedidos** guarda o que cada pessoa **pagou de verdade** (coluna **Valor pago (Pix)**,
+com o preço que o site mostrou na hora: R$ 50 ou R$ 45) e o **Valor final** (preço atual).
+A coluna **A devolver** é a diferença.
+
+- **Aba Resumo:** valor final, valor recebido, total a devolver e saldo.
+- **Aba Devoluções** (menu **Pedido → Atualizar lista de devoluções**): quem recebe quanto,
+  com nome e telefone, e a caixinha **Devolvido?** para marcar quem já recebeu (a marcação é
+  mantida quando a lista é atualizada).
+- **Página /resumo:** valor recebido, valor final, total a devolver e a lista por pedido
+  (só o primeiro nome).
+
+Pedidos feitos antes de existir a coluna Valor pago são preenchidos com o preço cheio
+(R$ 50 + R$ 10 por nome) ao rodar `configurarPlanilha`.
+
 ## Regras de preço
 
 - Até 29 camisas no total do grupo: **R$ 50,00** cada.
@@ -90,6 +106,13 @@ Para mudar o prazo ou os preços, altere **os dois** arquivos: `config.js` e `Co
 
 Depois do prazo, o site e a planilha param de aceitar pedidos sozinhos.
 Para tirar o site do ar: **Settings → Pages → Unpublish** (ou arquive o repositório).
+
+## Apagar testes / recomeçar do zero
+
+Na planilha, menu **Pedido → Limpar todos os pedidos (zerar)**. Ele pede confirmação e então:
+apaga as linhas da aba Pedidos (mantém o cabeçalho), manda os comprovantes da pasta do Drive para
+a lixeira (recuperáveis por 30 dias), volta a numeração para o pedido nº 1 e remove a aba
+Fornecedor. **Use só antes de abrir os pedidos de verdade.**
 
 ## Problemas comuns
 

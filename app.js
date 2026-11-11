@@ -128,7 +128,7 @@
     const falta = C.MINIMO_DESCONTO - comCarrinho;
     let msg;
     if (total >= C.MINIMO_DESCONTO) {
-      msg = `O grupo já chegou a ${C.MINIMO_DESCONTO} camisas: todo mundo paga <b>${brl(C.PRECO_DESCONTO)}</b>.`;
+      msg = `🎉 O grupo chegou a ${C.MINIMO_DESCONTO} camisas! Agora cada camisa sai por <b>${brl(C.PRECO_DESCONTO)}</b>.`;
     } else if (falta <= 0) {
       msg = `Com o seu pedido o grupo chega a ${C.MINIMO_DESCONTO} camisas e o preço cai para <b>${brl(C.PRECO_DESCONTO)}</b>!`;
     } else {
@@ -137,10 +137,12 @@
     $("progress-msg").innerHTML = msg;
 
     const dif = brl(C.PRECO_NORMAL - C.PRECO_DESCONTO);
-    $("aviso-devolucao").hidden = total >= C.MINIMO_DESCONTO;
-    $("aviso-devolucao").innerHTML =
-      `<b>Pode pedir sem medo:</b> se você pagar ${brl(C.PRECO_NORMAL)} e o grupo chegar a ${C.MINIMO_DESCONTO} camisas, ` +
-      `a organização <b>devolve ${dif} por camisa</b> e faz o acerto depois que os pedidos fecharem.`;
+    $("aviso-devolucao").innerHTML = total >= C.MINIMO_DESCONTO
+      ? `<b>Já pagou ${brl(C.PRECO_NORMAL)}?</b> A organização <b>devolve ${dif} por camisa</b> ` +
+        `e faz o acerto depois que os pedidos fecharem.`
+      : `<b>Pode pedir sem medo:</b> se você pagar ${brl(C.PRECO_NORMAL)} e o grupo chegar a ${C.MINIMO_DESCONTO} camisas, ` +
+        `a organização <b>devolve ${dif} por camisa</b> e faz o acerto depois que os pedidos fecharem.`;
+    $("aviso-devolucao").hidden = false;
   }
 
   const estaAberto = () => Date.now() < prazo.getTime();
