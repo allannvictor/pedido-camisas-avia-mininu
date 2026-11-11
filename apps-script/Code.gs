@@ -28,15 +28,18 @@ const TIPOS = Object.keys(TAMANHOS);
 const ABA_PEDIDOS = "Pedidos";
 const ABA_RESUMO = "Resumo";
 const ABA_FORNECEDOR = "Fornecedor";
-const CABECALHO = ["Data", "Pedido nº", "Nome", "Telefone", "Tipo", "Tamanho", "Qtd", "Nome na camisa", "Valor", "Pago?", "Comprovante", "Observação"];
-// colunas (1 = A): E=Tipo F=Tamanho G=Qtd H=Nome na camisa I=Valor J=Pago? K=Comprovante
-const COL = { tipo: 5, tamanho: 6, qtd: 7, nomeCamisa: 8, valor: 9, pago: 10, comprovante: 11 };
+const ABA_DEVOLUCOES = "Devoluções";
+const CABECALHO = ["Data", "Pedido nº", "Nome", "Telefone", "Tipo", "Tamanho", "Qtd", "Nome na camisa", "Valor final", "Pago?", "Comprovante", "Observação", "Valor pago (Pix)", "A devolver"];
+// colunas (1 = A): E=Tipo F=Tamanho G=Qtd H=Nome na camisa I=Valor final (preço atual)
+// J=Pago? K=Comprovante L=Observação M=Valor pago (o que a pessoa pagou no Pix) N=A devolver (M - I)
+const COL = { nome: 3, telefone: 4, tipo: 5, tamanho: 6, qtd: 7, nomeCamisa: 8, valor: 9, pago: 10, comprovante: 11, valorPago: 13, devolver: 14 };
 
 /** Menu "Pedido" dentro da planilha (aparece na barra de menus, depois de "Ajuda"). */
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Pedido")
     .addItem("Gerar relatório do fornecedor", "gerarRelatorioFornecedor")
+    .addItem("Atualizar lista de devoluções", "gerarDevolucoes")
     .addSeparator()
     .addItem("Limpar todos os pedidos (zerar)", "limparPedidos")
     .addToUi();
@@ -51,6 +54,9 @@ function onOpen() {
 function formulaValor_(r) {
   return `=G${r}*(${ABA_RESUMO}!$B$2+${PRECO_NOME}*(H${r}<>""))`;
 }
+function formulaDevolver_(r) {
+  return `=M${r}-I${r}`;
+}
 function linkComprovante_(url) {
   return SpreadsheetApp.newRichTextValue().setText("ver comprovante").setLinkUrl(url).build();
 }
@@ -64,26 +70,33 @@ function configurarPlanilha() {
   p.setFrozenRows(1);
   p.getRange("G:G").setNumberFormat("0");
   p.getRange("I:I").setNumberFormat("R$ #,##0.00");
+  p.getRange("M:N").setNumberFormat("R$ #,##0.00");
 
   const r = ss.getSheetByName(ABA_RESUMO) || ss.insertSheet(ABA_RESUMO);
   r.clear();
-  r.getRange("A1:A5").setValues([
-    ["Total de camisas"], ["Preço por camisa"], ["Camisas com nome"], ["Valor total"], ["Valor já pago"],
+  r.getRange("A1:A7").setValues([
+    ["Total de camisas"], ["Preço atual por camisa"], ["Camisas com nome"],
+    ["Valor final (preço atual)"], ["Valor recebido (Pix)"], ["Total a devolver"], ["Saldo (recebido − devolver)"],
   ]);
-  r.getRange("B1:B5").setFormulas([
+  r.getRange("B1:B7").setFormulas([
     ["=SUM(Pedidos!G2:G)"],
     [`=${PRECO_NORMAL}-${PRECO_NORMAL - PRECO_DESCONTO}*(B1>=${MINIMO_DESCONTO})`],
     ['=SUMPRODUCT((Pedidos!H2:H<>"")*Pedidos!G2:G)'],
     ["=SUM(Pedidos!I2:I)"],
-    ["=SUMPRODUCT(Pedidos!J2:J*Pedidos!I2:I)"],
+    ["=SUM(Pedidos!M2:M)"],
+    ["=SUM(Pedidos!N2:N)"],
+    ["=B5-B6"],
   ]);
   r.getRange("B2").setNumberFormat("R$ #,##0.00");
-  r.getRange("B4:B5").setNumberFormat("R$ #,##0.00");
-  r.getRange("A1:A5").setFontWeight("bold");
-  r.getRange("A7").setValue("Para o relatório completo do fornecedor: menu Pedido → Gerar relatório do fornecedor").setFontStyle("italic");
+  r.getRange("B4:B7").setNumberFormat("R$ #,##0.00");
+  r.getRange("A1:A7").setFontWeight("bold");
+  r.getRange("A6:B6").setBackground("#fff4d6");
+  r.getRange("A9").setValue("Quem devolver a quem: aba Devoluções (menu Pedido → Atualizar lista de devoluções). Relatório: menu Pedido → Gerar relatório do fornecedor").setFontStyle("italic");
   r.autoResizeColumns(1, 2);
 
   corrigirFormulasPedidos_(p);
+  preencherValorPago_(p);
+  atualizarDevolucoes_();
   pastaComprovantes_(); // cria a pasta no Drive (e pede a permissão do Drive)
   try { onOpen(); } catch (e) { /* rodando pelo editor: o menu aparece ao recarregar a planilha */ }
 }
@@ -112,6 +125,96 @@ function corrigirFormulasPedidos_(sh) {
     const url = arquivos[String(ids[k][0])];
     if (url) sh.getRange(k + 2, COL.comprovante).setRichTextValue(linkComprovante_(url));
   }
+}
+
+/**
+ * Pedidos gravados antes da coluna "Valor pago (Pix)" existir: considera que
+ * pagaram o preço cheio (R$ 50 + R$ 10 por nome), que era o valor cobrado até
+ * o grupo chegar a 30 camisas. Só preenche células vazias. Também regrava a
+ * fórmula "A devolver" (= Valor pago − Valor final) em todas as linhas.
+ */
+function preencherValorPago_(sh) {
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return;
+  const dados = sh.getRange(2, 1, n, CABECALHO.length).getValues();
+  const pagos = dados.map((r) => {
+    if (r[COL.valorPago - 1] !== "" && r[COL.valorPago - 1] !== null) return [r[COL.valorPago - 1]];
+    const qtd = Number(r[COL.qtd - 1]) || 0;
+    const temNome = String(r[COL.nomeCamisa - 1] || "").trim() !== "";
+    return [qtd ? qtd * (PRECO_NORMAL + (temNome ? PRECO_NOME : 0)) : ""];
+  });
+  sh.getRange(2, COL.valorPago, n, 1).setValues(pagos);
+  const devolver = [];
+  for (let k = 0; k < n; k++) devolver.push([formulaDevolver_(k + 2)]);
+  sh.getRange(2, COL.devolver, n, 1).setFormulas(devolver);
+}
+
+/** Menu: recria a aba Devoluções e avisa o total. */
+function gerarDevolucoes() {
+  const d = atualizarDevolucoes_();
+  try {
+    SpreadsheetApp.getUi().alert(
+      d.total > 0
+        ? `Aba "Devoluções" atualizada: ${d.pedidos.length} pedido(s), total a devolver R$ ${d.total.toFixed(2).replace(".", ",")}.`
+        : "Nenhuma devolução pendente."
+    );
+  } catch (e) {}
+}
+
+/** Valor pago, valor final e diferença, por pedido. */
+function devolucoesPorPedido_() {
+  const linhas = lerItens_();
+  const total = somar_(linhas);
+  const preco = total >= MINIMO_DESCONTO ? PRECO_DESCONTO : PRECO_NORMAL;
+  const mapa = {};
+  linhas.forEach((l) => {
+    const p = mapa[l.id] || (mapa[l.id] = { pedido: l.id, nome: l.nome, telefone: l.telefone, camisas: 0, pago: 0, final: 0, semValorPago: false });
+    const final = l.qtd * (preco + (l.nomeCamisa ? PRECO_NOME : 0));
+    p.camisas += l.qtd;
+    p.final += final;
+    if (l.valorPago === null) { p.pago += final; p.semValorPago = true; } else p.pago += l.valorPago;
+  });
+  return Object.values(mapa)
+    .map((p) => ({ ...p, devolver: Math.round((p.pago - p.final) * 100) / 100 }))
+    .sort((a, b) => a.pedido - b.pedido);
+}
+
+/**
+ * Recria a aba Devoluções (só pedidos com valor a devolver), mantendo marcada a
+ * caixinha "Devolvido?" de quem já recebeu.
+ */
+function atualizarDevolucoes_() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(ABA_DEVOLUCOES) || ss.insertSheet(ABA_DEVOLUCOES);
+  const jaDevolvido = {};
+  if (sh.getLastRow() > 1) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, 8).getValues().forEach((r) => { if (r[7] === true) jaDevolvido[r[0]] = true; });
+  }
+  sh.clear();
+  sh.getRange(1, 1, sh.getMaxRows(), 8).clearDataValidations();
+  const cab = ["Pedido nº", "Nome", "Telefone", "Camisas", "Pagou", "Valor final", "A devolver", "Devolvido?"];
+  sh.getRange(1, 1, 1, cab.length).setValues([cab])
+    .setFontWeight("bold").setBackground("#0f1b3d").setFontColor("#ffffff");
+  sh.setFrozenRows(1);
+
+  const lista = devolucoesPorPedido_().filter((p) => p.devolver > 0);
+  const total = lista.reduce((s, p) => s + p.devolver, 0);
+  if (lista.length) {
+    sh.getRange(2, 1, lista.length, 7).setValues(
+      lista.map((p) => [p.pedido, "'" + p.nome, "'" + p.telefone, p.camisas, p.pago, p.final, p.devolver])
+    );
+    const caixas = sh.getRange(2, 8, lista.length, 1).insertCheckboxes();
+    caixas.setValues(lista.map((p) => [jaDevolvido[p.pedido] === true]));
+    sh.getRange(2, 5, lista.length, 3).setNumberFormat("R$ #,##0.00");
+    const fim = lista.length + 2;
+    sh.getRange(fim, 1, 1, 7).setValues([["TOTAL", "", "", lista.reduce((s, p) => s + p.camisas, 0), "", "", total]])
+      .setFontWeight("bold").setBackground("#fff4d6");
+    sh.getRange(fim, 7).setNumberFormat("R$ #,##0.00");
+  } else {
+    sh.getRange(2, 1).setValue("Nenhuma devolução pendente.");
+  }
+  sh.autoResizeColumns(1, 8);
+  return { pedidos: lista, total };
 }
 
 function mapaComprovantes_() {
@@ -157,8 +260,10 @@ function limparPedidos() {
 
     PropertiesService.getScriptProperties().deleteProperty("ultimoId");
 
-    const forn = ss.getSheetByName(ABA_FORNECEDOR);
-    if (forn) ss.deleteSheet(forn);
+    [ABA_FORNECEDOR, ABA_DEVOLUCOES].forEach((nome) => {
+      const aba = ss.getSheetByName(nome);
+      if (aba) ss.deleteSheet(aba);
+    });
 
     SpreadsheetApp.flush();
     ui.alert(`Pronto! ${n > 0 ? n : 0} linha(s) apagada(s) e ${arquivos} comprovante(s) enviados para a lixeira. O próximo pedido será o nº 1.`);
@@ -280,6 +385,9 @@ function lerItens_() {
       id: r[1], tipo: r[COL.tipo - 1], tamanho: String(r[COL.tamanho - 1]).replace(/^'/, ""),
       qtd: Number(r[COL.qtd - 1]) || 0, nomeCamisa: String(r[COL.nomeCamisa - 1] || "").trim(),
       pago: r[COL.pago - 1] === true,
+      nome: String(r[COL.nome - 1] || "").replace(/^'/, ""),
+      telefone: String(r[COL.telefone - 1] || "").replace(/^'/, ""),
+      valorPago: r[COL.valorPago - 1] === "" || r[COL.valorPago - 1] === null ? null : Number(r[COL.valorPago - 1]) || 0,
     }))
     .filter((l) => l.qtd > 0);
 }
@@ -329,7 +437,23 @@ function resumo_() {
     valorTotal: valor(linhas),
     valorPago: valor(linhas.filter((l) => l.pago)),
     naoPagas: somar_(linhas.filter((l) => !l.pago)),
+    ...resumoDevolucoes_(),
     tipos,
+  };
+}
+
+/**
+ * Para a página /resumo: valor recebido de verdade, total a devolver e a lista
+ * por pedido (só o primeiro nome, sem telefone — a página é pública).
+ */
+function resumoDevolucoes_() {
+  const ped = devolucoesPorPedido_();
+  const devolver = ped.filter((p) => p.devolver > 0);
+  return {
+    valorRecebido: ped.reduce((s, p) => s + p.pago, 0),
+    aDevolver: devolver.reduce((s, p) => s + p.devolver, 0),
+    semValorPago: ped.filter((p) => p.semValorPago).length,
+    devolucoes: devolver.map((p) => ({ pedido: p.pedido, nome: p.nome.split(" ")[0], camisas: p.camisas, valor: p.devolver })),
   };
 }
 
@@ -363,19 +487,36 @@ function doPost(e) {
     try {
       const sh = SpreadsheetApp.getActive().getSheetByName(ABA_PEDIDOS);
       const props = PropertiesService.getScriptProperties();
-      const id = Number(props.getProperty("ultimoId") || 0) + 1;
+      // próximo nº = maior entre o contador salvo e o maior nº já na planilha (evita repetir)
+      const nLinhas = sh.getLastRow() - 1;
+      const maiorNaPlanilha = nLinhas > 0
+        ? Math.max(0, ...sh.getRange(2, 2, nLinhas, 1).getValues().map(([v]) => Number(v) || 0))
+        : 0;
+      const id = Math.max(Number(props.getProperty("ultimoId") || 0), maiorNaPlanilha) + 1;
       props.setProperty("ultimoId", String(id));
       arquivo.setName(`Pedido ${id} - ${arquivo.getName()}`);
+
+      // Quanto a pessoa pagou: o site mostra o valor com o preço do momento
+      // (R$ 50 ou R$ 45). Usa o valor informado pelo site se bater com um dos dois
+      // preços; senão, calcula com a mesma regra do site.
+      const qtdPedido = itens.reduce((s, i) => s + i.qtd, 0);
+      const esperado = (p) => itens.reduce((s, i) => s + i.qtd * (p + (i.nomeCamisa ? PRECO_NOME : 0)), 0);
+      const informado = Number(dados.valor);
+      let precoPago = totalUnidades_() + qtdPedido >= MINIMO_DESCONTO ? PRECO_DESCONTO : PRECO_NORMAL;
+      if (informado === esperado(PRECO_NORMAL)) precoPago = PRECO_NORMAL;
+      else if (informado === esperado(PRECO_DESCONTO)) precoPago = PRECO_DESCONTO;
 
       const agora = new Date();
       const inicio = sh.getLastRow() + 1;
       const linhas = itens.map((i) => {
         return [
           agora, id, "'" + nome, "'" + telefone, i.tipo, i.tamanho, i.qtd, i.nomeCamisa, "", true, "", "",
+          i.qtd * (precoPago + (i.nomeCamisa ? PRECO_NOME : 0)), "",
         ];
       });
       sh.getRange(inicio, 1, linhas.length, CABECALHO.length).setValues(linhas);
       sh.getRange(inicio, COL.valor, linhas.length, 1).setFormulas(linhas.map((_, k) => [formulaValor_(inicio + k)]));
+      sh.getRange(inicio, COL.devolver, linhas.length, 1).setFormulas(linhas.map((_, k) => [formulaDevolver_(inicio + k)]));
       sh.getRange(inicio, COL.comprovante, linhas.length, 1)
         .setRichTextValues(linhas.map(() => [linkComprovante_(arquivo.getUrl())]));
       sh.getRange(inicio, COL.pago, linhas.length, 1).insertCheckboxes().check(); // comprovante é obrigatório: já entra como pago

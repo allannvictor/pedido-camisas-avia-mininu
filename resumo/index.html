@@ -20,6 +20,8 @@
     .stat b { font-family: Archivo, sans-serif; font-size: 24px; line-height: 1.2; }
     .stat.big { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; }
     .stat.big b { font-size: 40px; color: var(--accent); }
+    .stat.devolver { background: rgba(255, 194, 61, .18); border: 1px solid rgba(255, 194, 61, .6); }
+    .stat.devolver b { font-size: 32px; color: var(--ink); }
     .alerta { margin: 12px 0 0; color: var(--danger); font-weight: 600; font-size: 14px; }
     table { width: 100%; border-collapse: collapse; font-size: 15px; }
     th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
@@ -58,10 +60,21 @@
         <div class="stat"><span class="label">Preço por camisa</span><b id="r-preco">–</b></div>
         <div class="stat"><span class="label">Camisas com nome</span><b id="r-nome">0</b></div>
         <div class="stat"><span class="label">Falta para o desconto</span><b id="r-falta">–</b></div>
-        <div class="stat"><span class="label">Valor total</span><b id="r-valor">–</b></div>
-        <div class="stat"><span class="label">Valor já pago</span><b id="r-pago">–</b></div>
+        <div class="stat"><span class="label">Valor recebido (Pix)</span><b id="r-recebido">–</b></div>
+        <div class="stat"><span class="label">Valor final</span><b id="r-valor">–</b></div>
+        <div class="stat big devolver"><span class="label">Total a devolver</span><b id="r-devolver">–</b></div>
       </div>
+      <p class="hint" id="r-explica"></p>
       <p class="alerta" id="r-alerta" hidden></p>
+    </section>
+
+    <section class="card" id="devolucoes" hidden>
+      <h2>Devoluções</h2>
+      <p class="hint" style="margin:0 0 8px" id="dev-explica"></p>
+      <table>
+        <thead><tr><th>Pedido</th><th>Nome</th><th class="n">Camisas</th><th class="n">Devolver</th></tr></thead>
+        <tbody id="tb-devolucoes"></tbody>
+      </table>
     </section>
 
     <section class="card" id="por-tipo" hidden>
@@ -112,7 +125,23 @@
         const falta = C.MINIMO_DESCONTO - d.totalUnidades;
         $("r-falta").textContent = falta > 0 ? `${falta} camisa(s)` : "Atingido ✓";
         $("r-valor").textContent = brl(d.valorTotal);
-        $("r-pago").textContent = brl(d.valorPago);
+        const temDevolucao = typeof d.aDevolver === "number";
+        $("r-recebido").textContent = temDevolucao ? brl(d.valorRecebido) : "–";
+        $("r-devolver").textContent = temDevolucao ? brl(d.aDevolver) : "–";
+        $("r-explica").textContent = !temDevolucao
+          ? "Para ver o valor recebido e as devoluções, publique a versão mais recente do Code.gs."
+          : d.semValorPago
+            ? `Rode "configurarPlanilha" no Apps Script: ${d.semValorPago} pedido(s) ainda sem "Valor pago" na planilha.`
+            : `Valor final = camisas × ${brl(d.preco)} (preço atual) + nomes. A devolver = recebido − valor final.`;
+        const devs = temDevolucao ? d.devolucoes : [];
+        $("tb-devolucoes").innerHTML = devs.length
+          ? devs.map((x) => `<tr><td>nº ${x.pedido}</td><td>${esc(x.nome)}</td><td class="n">${x.camisas}</td><td class="n">${brl(x.valor)}</td></tr>`).join("") +
+            `<tr class="total"><td colspan="2">Total</td><td class="n">${devs.reduce((s, x) => s + x.camisas, 0)}</td><td class="n">${brl(d.aDevolver)}</td></tr>`
+          : `<tr><td colspan="4" class="muted">Nenhuma devolução pendente.</td></tr>`;
+        $("dev-explica").innerHTML =
+          `Quem pagou ${brl(C.PRECO_NORMAL)} antes do grupo chegar a ${C.MINIMO_DESCONTO} camisas recebe a diferença de volta. ` +
+          `Nome completo e telefone estão na aba <b>Devoluções</b> da planilha.`;
+        $("devolucoes").hidden = !temDevolucao;
         $("r-alerta").hidden = !d.naoPagas;
         $("r-alerta").textContent = `Atenção: ${d.naoPagas} camisa(s) de pedidos com "Pago?" desmarcado na planilha.`;
 
